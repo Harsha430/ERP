@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/components/ui/use-toast';
 import { Plus, RefreshCw, Search, Edit2, X, Save, Layers, Power, Download } from 'lucide-react';
 import { exportToCSV } from '@/lib/exportUtil';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
 interface Department {
   id?: string;
@@ -20,6 +21,7 @@ interface Department {
   createdAt?: string;
   updatedAt?: string;
 }
+interface EmployeeMinimal { id?: string; employeeId?: string; name?: string; fullName?: string; }
 
 export default function Departments() {
   const { toast } = useToast();
@@ -31,14 +33,19 @@ export default function Departments() {
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [form, setForm] = useState<Department>({ name:'', description:'', headEmployeeId:'', isActive:true });
   const [refreshing, setRefreshing] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeMinimal[]>([]);
 
   useEffect(()=> { fetchAll(); }, []);
 
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const data = await hrService.getDepartments();
-      setDepartments(data);
+      const [deptData, empData] = await Promise.all([
+        hrService.getDepartments(),
+        hrService.getEmployees().catch(()=> [])
+      ]);
+      setDepartments(deptData);
+      setEmployees(empData);
     } catch (e:any) {
       toast({ title:'Load failed', description:e.message||'Error', variant:'destructive'});
     } finally { setLoading(false); }
@@ -101,6 +108,12 @@ export default function Departments() {
 
   const refresh = async () => { setRefreshing(true); await fetchAll(); setRefreshing(false); };
 
+  const getHeadName = (id?: string) => {
+    if (!id) return '-';
+    const emp = employees.find(e=> e.id===id || e.employeeId===id);
+    return emp?.name || emp?.fullName || id;
+  };
+
   if (loading) return <div className='flex items-center justify-center min-h-[300px] gap-2'><RefreshCw className='h-5 w-5 animate-spin'/><span>Loading departments...</span></div>;
 
   return (
@@ -153,7 +166,7 @@ export default function Departments() {
                     <div className='font-medium'>{d.name}</div>
                     <div className='text-xs text-muted-foreground max-w-[240px] truncate'>{d.description}</div>
                   </TableCell>
-                  <TableCell className='text-xs'>{d.headEmployeeId||'-'}</TableCell>
+                  <TableCell className='text-xs'>{getHeadName(d.headEmployeeId)}</TableCell>
                   <TableCell>{d.isActive? <Badge className='status-approved'>Active</Badge>: <Badge variant='secondary'>Inactive</Badge>}</TableCell>
                   <TableCell className='text-xs'>{d.createdAt? String(d.createdAt).split('T')[0]: '-'}</TableCell>
                   <TableCell className='text-right'>
@@ -186,8 +199,13 @@ export default function Departments() {
               <Input value={form.description} onChange={e=> setForm(f=> ({...f, description:e.target.value}))} />
             </div>
             <div className='space-y-1'>
-              <label className='text-xs font-medium'>Head Employee ID</label>
-              <Input value={form.headEmployeeId||''} onChange={e=> setForm(f=> ({...f, headEmployeeId:e.target.value}))} />
+              <label className='text-xs font-medium'>Head</label>
+              <Select value={form.headEmployeeId||''} onValueChange={v=> setForm(f=> ({...f, headEmployeeId:v}))}>
+                <SelectTrigger><SelectValue placeholder='Select head employee'/></SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp=> <SelectItem key={emp.id||emp.employeeId} value={String(emp.id||emp.employeeId)}>{emp.name||emp.fullName||emp.employeeId}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className='flex justify-end gap-2'>
@@ -199,4 +217,3 @@ export default function Departments() {
     </div>
   );
 }
-

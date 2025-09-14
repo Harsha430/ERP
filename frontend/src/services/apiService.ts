@@ -2,16 +2,27 @@
 const API_BASE_URL = 'http://localhost:8081/api';
 
 // Generic API request function (robust parsing for JSON / text / empty)
-async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiRequest<T>(endpoint: string, options?: RequestInit & { suppressNotFoundError?: boolean }): Promise<T> {
   try {
     const url = `${API_BASE_URL}${endpoint}`;
+    const { suppressNotFoundError, ...fetchOptions } = options || {};
     const config: RequestInit = {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(options?.headers||{}) },
-      ...options,
+      headers: { 'Content-Type': 'application/json', ...(fetchOptions?.headers||{}) },
+      ...fetchOptions,
     };
     const response = await fetch(url, config);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(`HTTP error! status: ${response.status}`);
+      // Don't log 404 errors if suppressNotFoundError is true, but still throw them
+      if (response.status === 404 && suppressNotFoundError) {
+        // Silently throw the error without logging
+        throw error;
+      }
+      // Log and throw for all other errors
+      console.error(`API request failed for ${endpoint}:`, error);
+      throw error;
+    }
     if (response.status === 204) return undefined as unknown as T;
     const ct = response.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
@@ -19,7 +30,13 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     }
     const txt = await response.text();
     return txt as unknown as T;
-  } catch (e) { console.error(`API request failed for ${endpoint}:`, e); throw e; }
+  } catch (e) {
+    // Only log error if it's not a suppressed 404
+    if (!(options?.suppressNotFoundError && e instanceof Error && e.message.includes('status: 404'))) {
+      console.error(`API request failed for ${endpoint}:`, e);
+    }
+    throw e;
+  }
 }
 
 // Helper to build query string from object
@@ -50,15 +67,21 @@ export const hrService = {
 
   // Department APIs
   getDepartments: () => apiRequest<any[]>('/hr/departments'),
-  getDepartmentById: (id: string) => apiRequest<any>(`/hr/departments/${id}`),
+  getDepartmentById: (id: string, suppressNotFoundError = false) => apiRequest<any>(`/hr/departments/${id}`, { suppressNotFoundError }),
   createDepartment: (department: any) => apiRequest<any>('/hr/departments', { method: 'POST', body: JSON.stringify(department) }),
   updateDepartment: (id: string, department: any) => apiRequest<any>(`/hr/departments/${id}`, { method: 'PUT', body: JSON.stringify(department) }),
   deleteDepartment: (id: string) => apiRequest<void>(`/hr/departments/${id}`, { method: 'DELETE' }),
+  searchDepartments: (term: string) => apiRequest<any[]>(`/hr/departments/search?term=${encodeURIComponent(term)}`),
+  activateDepartment: (id: string) => apiRequest<any>(`/hr/departments/${id}/activate`, { method: 'PATCH' }),
+  deactivateDepartment: (id: string) => apiRequest<any>(`/hr/departments/${id}/deactivate`, { method: 'PATCH' }),
 
-  // Position APIs
-  getPositions: () => apiRequest<any[]>('/hr/positions'),
-  getPositionById: (id: string) => apiRequest<any>(`/hr/positions/${id}`),
-  getPositionsByDepartment: (departmentId: string) => apiRequest<any[]>(`/hr/positions/department/${departmentId}`),
+  // Position APIs - Note: These endpoints may not exist on the backend yet
+  getPositions: () => apiRequest<any[]>('/hr/positions').catch(() => []), // Graceful fallback for missing endpoint
+  getPositionById: (id: string, suppressNotFoundError = false) => apiRequest<any>(`/hr/positions/${id}`, { suppressNotFoundError }),
+  getPositionsByDepartment: (departmentId: string) => apiRequest<any[]>(`/hr/positions/department/${departmentId}`).catch(() => []),
+  createPosition: (position: any) => apiRequest<any>('/hr/positions', { method: 'POST', body: JSON.stringify(position) }),
+  updatePosition: (id: string, position: any) => apiRequest<any>(`/hr/positions/${id}`, { method: 'PUT', body: JSON.stringify(position) }),
+  deletePosition: (id: string) => apiRequest<void>(`/hr/positions/${id}`, { method: 'DELETE' }),
 
   // Attendance APIs
   getAttendance: () => apiRequest<any[]>('/hr/attendance'),
@@ -100,7 +123,6 @@ export const financeService = {
   updateExpense: (id: string, expense: any) => apiRequest<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(expense) }),
   deleteExpense: (id: string) => apiRequest<void>(`/expenses/${id}`, { method: 'DELETE' }),
   markExpensePaid: (id: string) => apiRequest<any>(`/expenses/${id}/pay`, { method: 'POST' }),
-  // Department advanced endpoints
 
   // Invoice APIs
   getInvoices: () => apiRequest<any[]>('/invoices'),
@@ -135,6 +157,28 @@ export const financeService = {
   getBalanceSheet: (from: string, to: string) => apiRequest<any>(`/reports/balance-sheet?from=${from}&to=${to}`),
   getProfitAndLoss: (from: string, to: string) => apiRequest<any>(`/reports/profit-loss?from=${from}&to=${to}`),
   getCashFlow: (from: string, to: string) => apiRequest<any>(`/reports/cash-flow?from=${from}&to=${to}`),
+
+  // Budgeting APIs
+  getBudgets: () => apiRequest<any[]>('/budgets'),
+  getBudgetById: (id: string) => apiRequest<any>(`/budgets/${id}`),
+  createBudget: (budget: any) => apiRequest<any>('/budgets', { method: 'POST', body: JSON.stringify(budget) }),
+  updateBudget: (id: string, budget: any) => apiRequest<any>(`/budgets/${id}`, { method: 'PUT', body: JSON.stringify(budget) }),
+  deleteBudget: (id: string) => apiRequest<void>(`/budgets/${id}`, { method: 'DELETE' }),
+
+  // Transaction APIs
+  getTransactions: () => apiRequest<any[]>('/transactions'),
+  getTransactionById: (id: string) => apiRequest<any>(`/transactions/${id}`),
+  createTransaction: (transaction: any) => apiRequest<any>('/transactions', { method: 'POST', body: JSON.stringify(transaction) }),
+  updateTransaction: (id: string, transaction: any) => apiRequest<any>(`/transactions/${id}`, { method: 'PUT', body: JSON.stringify(transaction) }),
+  deleteTransaction: (id: string) => apiRequest<void>(`/transactions/${id}`, { method: 'DELETE' }),
+};
+
+export const adminService = {
+  getUsers: () => apiRequest<any[]>('/admin/users'),
+  getUserById: (id:string) => apiRequest<any>(`/admin/users/${id}`),
+  createUser: (user:any) => apiRequest<any>('/admin/users', { method:'POST', body: JSON.stringify(user)}),
+  updateUser: (id:string, user:any) => apiRequest<any>(`/admin/users/${id}`, { method:'PUT', body: JSON.stringify(user)}),
+  deleteUser: (id:string) => apiRequest<void>(`/admin/users/${id}`, { method:'DELETE'})
 };
 
 // Utility function to format currency in INR
@@ -157,4 +201,5 @@ export const formatDateTime = (dateString: string): string => {
   return new Date(dateString).toLocaleString('en-IN');
 };
 
-export default { hrService, financeService, formatCurrency, formatDate, formatDateTime };
+// Default export for backward compatibility
+export default { hrService, financeService, adminService, formatCurrency, formatDate, formatDateTime };
