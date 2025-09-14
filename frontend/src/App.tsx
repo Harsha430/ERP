@@ -19,6 +19,8 @@ import Employees from "./pages/hr/Employees";
 import Attendance from "./pages/hr/Attendance";
 import LeaveRequests from "./pages/hr/LeaveRequests";
 import Payroll from "./pages/hr/Payroll";
+import Departments from "./pages/hr/Departments";
+import Positions from "./pages/hr/Positions";
 
 // Finance Pages
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
@@ -36,6 +38,7 @@ import Profile from "./pages/common/Profile";
 import Settings from "./pages/common/Settings";
 
 import NotFound from "./pages/NotFound";
+import { useAuth } from './contexts/AuthContext';
 
 const queryClient = new QueryClient();
 
@@ -51,27 +54,29 @@ const App = () => (
             <Route path="/hr-login" element={<HRLogin />} />
             <Route path="/finance-login" element={<FinanceLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
-            
+
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="dashboard" element={<HRDashboard />} />
-              <Route path="employees" element={<Employees />} />
-              <Route path="attendance" element={<Attendance />} />
-              <Route path="leaves" element={<LeaveRequests />} />
-              <Route path="payroll" element={<Payroll />} />
-              
-              <Route path="finance-dashboard" element={<FinanceDashboard />} />
-              <Route path="accounts" element={<Accounts />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="budgeting" element={<Budgeting />} />
-              <Route path="reports" element={<Reports />} />
-              
-              <Route path="users" element={<ManageUsers />} />
-              <Route path="add-user" element={<AddUser />} />
-              
-              <Route path="profile" element={<Profile />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="dashboard" element={<ProtectedRoute allowedRoles={['hr','admin']}><HRDashboard /></ProtectedRoute>} />
+              <Route path="employees" element={<ProtectedRoute allowedRoles={['hr','admin']}><Employees /></ProtectedRoute>} />
+              <Route path="attendance" element={<ProtectedRoute allowedRoles={['hr','admin']}><Attendance /></ProtectedRoute>} />
+              <Route path="leaves" element={<ProtectedRoute allowedRoles={['hr','admin']}><LeaveRequests /></ProtectedRoute>} />
+              <Route path="payroll" element={<ProtectedRoute allowedRoles={['hr','finance','admin']}><Payroll /></ProtectedRoute>} />
+
+              <Route path="finance-dashboard" element={<ProtectedRoute allowedRoles={['finance','admin']}><FinanceDashboard /></ProtectedRoute>} />
+              <Route path="accounts" element={<ProtectedRoute allowedRoles={['finance','admin']}><Accounts /></ProtectedRoute>} />
+              <Route path="transactions" element={<ProtectedRoute allowedRoles={['finance','admin']}><Transactions /></ProtectedRoute>} />
+              <Route path="budgeting" element={<ProtectedRoute allowedRoles={['finance','admin']}><Budgeting /></ProtectedRoute>} />
+              <Route path="reports" element={<ProtectedRoute allowedRoles={['finance','admin']}><Reports /></ProtectedRoute>} />
+
+              <Route path="users" element={<ProtectedRoute allowedRoles={['admin']}><ManageUsers /></ProtectedRoute>} />
+              <Route path="add-user" element={<ProtectedRoute allowedRoles={['admin']}><AddUser /></ProtectedRoute>} />
+
+              <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="departments" element={<ProtectedRoute allowedRoles={['hr','admin']}><Departments /></ProtectedRoute>} />
+              <Route path="positions" element={<ProtectedRoute allowedRoles={['hr','admin']}><Positions /></ProtectedRoute>} />
             </Route>
-            
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

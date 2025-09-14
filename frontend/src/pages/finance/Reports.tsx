@@ -1,221 +1,199 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Download, Calendar, BarChart3, TrendingUp, DollarSign } from 'lucide-react';
+import { financeService, formatCurrency } from '@/services/apiService';
+import { FileText, Download, Calendar, BarChart3, TrendingUp, DollarSign, RefreshCw, Layers } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+
+interface ReportRow { amount: number; date: string; status?: string; invoiceNumber?: string; title?: string; category?: string; }
 
 export default function Reports() {
-  const reports = [
-    {
-      id: 'financial-summary',
-      title: 'Financial Summary Report',
-      description: 'Comprehensive overview of financial performance',
-      type: 'PDF',
-      lastGenerated: '2024-01-15',
-      icon: DollarSign,
-    },
-    {
-      id: 'profit-loss',
-      title: 'Profit & Loss Statement',
-      description: 'Detailed P&L analysis for the current period',
-      type: 'Excel',
-      lastGenerated: '2024-01-14',
-      icon: TrendingUp,
-    },
-    {
-      id: 'budget-analysis',
-      title: 'Budget Analysis Report',
-      description: 'Budget vs actual performance analysis',
-      type: 'PDF',
-      lastGenerated: '2024-01-13',
-      icon: BarChart3,
-    },
-    {
-      id: 'cash-flow',
-      title: 'Cash Flow Statement',
-      description: 'Monthly cash flow analysis and projections',
-      type: 'Excel',
-      lastGenerated: '2024-01-12',
-      icon: Calendar,
-    },
-    {
-      id: 'balance-sheet',
-      title: 'Balance Sheet',
-      description: 'Complete balance sheet with assets and liabilities',
-      type: 'PDF',
-      lastGenerated: '2024-01-11',
-      icon: FileText,
-    },
-    {
-      id: 'tax-report',
-      title: 'Tax Compliance Report',
-      description: 'Tax calculations and compliance documentation',
-      type: 'PDF',
-      lastGenerated: '2024-01-10',
-      icon: FileText,
-    },
-  ];
+  const { toast } = useToast();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [detailFrom, setDetailFrom] = useState<string>('');
+  const [detailTo, setDetailTo] = useState<string>('');
+  const [loadingDetailed, setLoadingDetailed] = useState(false);
+  const [balanceSheet, setBalanceSheet] = useState<any|null>(null);
+  const [profitLoss, setProfitLoss] = useState<any|null>(null);
+  const [cashFlow, setCashFlow] = useState<any|null>(null);
 
-  const handleDownload = (reportId: string, reportTitle: string) => {
-    // Mock download functionality
-    console.log(`Downloading ${reportTitle}...`);
-    // In real app, this would trigger actual download
+  const summaryQuery = useQuery({
+    queryKey: ['financial-summary', refreshKey],
+    queryFn: () => financeService.getFinancialSummary(),
+  });
+
+  const revenueQuery = useQuery<ReportRow[]>({
+    queryKey: ['revenue-report', startDate, endDate, refreshKey],
+    queryFn: () => financeService.getRevenueReport(startDate || undefined, endDate || undefined),
+  });
+
+  const expenseQuery = useQuery<ReportRow[]>({
+    queryKey: ['expense-report', startDate, endDate, refreshKey],
+    queryFn: () => financeService.getExpenseReport(startDate || undefined, endDate || undefined),
+  });
+
+  const loading = summaryQuery.isLoading || revenueQuery.isLoading || expenseQuery.isLoading;
+  const error = summaryQuery.error || revenueQuery.error || expenseQuery.error;
+
+  const totalRevenue = revenueQuery.data?.reduce((s,r)=> s + (Number(r.amount)||0),0) || 0;
+  const totalExpenses = expenseQuery.data?.reduce((s,r)=> s + (Number(r.amount)||0),0) || 0;
+  const net = totalRevenue - totalExpenses;
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k+1);
+    toast({ title:'Refreshing reports', description:'Fetching latest data...' });
+  };
+
+  const loadDetailed = async () => {
+    if (!detailFrom || !detailTo) { toast({ title:'Dates required', description:'Select From and To dates', variant:'destructive'}); return; }
+    try {
+      setLoadingDetailed(true);
+      const [bs, pl, cf] = await Promise.all([
+        financeService.getBalanceSheet(detailFrom, detailTo),
+        financeService.getProfitAndLoss(detailFrom, detailTo),
+        financeService.getCashFlow(detailFrom, detailTo)
+      ]);
+      setBalanceSheet(bs);
+      setProfitLoss(pl);
+      setCashFlow(cf);
+      toast({ title:'Detailed reports loaded'});
+    } catch (e:any) {
+      toast({ title:'Load failed', description:e.message || 'Error', variant:'destructive'});
+    } finally { setLoadingDetailed(false); }
   };
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Financial Reports</h1>
-          <p className="text-muted-foreground">Generate and download financial reports</p>
+          <p className="text-muted-foreground">Generate and analyze financial performance</p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
-          <FileText className="h-4 w-4 mr-2" />
-          Generate Custom Report
-        </Button>
+        <div className='flex gap-2 items-end flex-wrap'>
+          <div className='flex flex-col'>
+            <label className='text-xs text-muted-foreground'>Start Date</label>
+            <Input type='date' value={startDate} onChange={e=> setStartDate(e.target.value)} />
+          </div>
+          <div className='flex flex-col'>
+            <label className='text-xs text-muted-foreground'>End Date</label>
+            <Input type='date' value={endDate} onChange={e=> setEndDate(e.target.value)} />
+          </div>
+          <Button variant='outline' onClick={handleRefresh}><RefreshCw className='h-4 w-4 mr-2'/>Refresh</Button>
+          <Button className="bg-gradient-primary hover:opacity-90" disabled>
+            <FileText className="h-4 w-4 mr-2" />
+            Export (Coming Soon)
+          </Button>
+        </div>
       </motion.div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="stat-card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Reports</p>
-                  <p className="text-2xl font-bold">{reports.length}</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600">
-                  <FileText className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {error && (
+        <Card className='border-destructive'><CardContent className='p-4 text-destructive text-sm'>Failed to load one or more reports.</CardContent></Card>
+      )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="stat-card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                  <p className="text-2xl font-bold">12</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Total Revenue</p><p className='text-2xl font-bold'>{formatCurrency(totalRevenue)}</p></div><div className='p-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600'><DollarSign className='h-6 w-6 text-white'/></div></div></CardContent></Card>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="stat-card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Downloads</p>
-                  <p className="text-2xl font-bold">248</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-violet-600">
-                  <Download className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Total Expenses</p><p className='text-2xl font-bold'>{formatCurrency(totalExpenses)}</p></div><div className='p-3 rounded-full bg-gradient-to-r from-red-500 to-rose-600'><BarChart3 className='h-6 w-6 text-white'/></div></div></CardContent></Card>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="stat-card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Automated</p>
-                  <p className="text-2xl font-bold">4</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-r from-orange-500 to-amber-600">
-                  <BarChart3 className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Net</p><p className={`text-2xl font-bold ${net>=0?'text-green-600':'text-red-600'}`}>{net>=0?'+':''}{formatCurrency(net)}</p></div><div className={`p-3 rounded-full ${net>=0?'bg-gradient-to-r from-green-500 to-emerald-600':'bg-gradient-to-r from-red-500 to-rose-600'}`}><TrendingUp className='h-6 w-6 text-white'/></div></div></CardContent></Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Paid Invoices</p><p className='text-2xl font-bold'>{summaryQuery.data?.paidInvoices ?? 0}</p></div><div className='p-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600'><Calendar className='h-6 w-6 text-white'/></div></div></CardContent></Card>
         </motion.div>
       </div>
 
-      {/* Reports Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {reports.map((report, index) => (
-          <motion.div
-            key={report.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 + index * 0.1 }}
-          >
-            <Card className="erp-card hover:shadow-erp-lg transition-all duration-300">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-primary">
-                      <report.icon className="h-5 w-5 text-white" />
-                    </div>
+      {/* Detailed Reports Loader */}
+      <Card>
+        <CardHeader><CardTitle className='flex items-center gap-2'><Layers className='h-5 w-5'/>Detailed Financial Reports</CardTitle></CardHeader>
+        <CardContent className='space-y-4'>
+          <div className='flex flex-col md:flex-row gap-4 items-end'>
+            <div className='flex flex-col'><label className='text-xs text-muted-foreground'>From</label><Input type='date' value={detailFrom} onChange={e=> setDetailFrom(e.target.value)} /></div>
+            <div className='flex flex-col'><label className='text-xs text-muted-foreground'>To</label><Input type='date' value={detailTo} onChange={e=> setDetailTo(e.target.value)} /></div>
+            <Button variant='outline' onClick={loadDetailed} disabled={loadingDetailed}>{loadingDetailed? 'Loading...':'Load Reports'}</Button>
+          </div>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+            <Card className='border'><CardHeader><CardTitle className='text-sm'>Balance Sheet</CardTitle></CardHeader><CardContent className='space-y-1 text-sm'>
+              {balanceSheet? <>
+                <div>Total Assets: <strong>{formatCurrency(Number(balanceSheet.totalAssets||0))}</strong></div>
+                <div>Total Liabilities: <strong>{formatCurrency(Number(balanceSheet.totalLiabilities||0))}</strong></div>
+                <div>Equity: <strong>{formatCurrency(Number(balanceSheet.equity||0))}</strong></div>
+              </>: <div className='text-muted-foreground text-xs'>No data loaded</div>}
+            </CardContent></Card>
+            <Card className='border'><CardHeader><CardTitle className='text-sm'>Profit & Loss</CardTitle></CardHeader><CardContent className='space-y-1 text-sm'>
+              {profitLoss? <>
+                <div>Total Income: <strong>{formatCurrency(Number(profitLoss.totalIncome||0))}</strong></div>
+                <div>Total Expenses: <strong>{formatCurrency(Number(profitLoss.totalExpenses||0))}</strong></div>
+                <div>Net Profit: <strong className={Number(profitLoss.netProfit||0)>=0?'text-green-600':'text-red-600'}>{formatCurrency(Number(profitLoss.netProfit||0))}</strong></div>
+              </>: <div className='text-muted-foreground text-xs'>No data loaded</div>}
+            </CardContent></Card>
+            <Card className='border'><CardHeader><CardTitle className='text-sm'>Cash Flow</CardTitle></CardHeader><CardContent className='space-y-1 text-sm'>
+              {cashFlow? <>
+                <div>Inflow: <strong>{formatCurrency(Number(cashFlow.inflow||0))}</strong></div>
+                <div>Outflow: <strong>{formatCurrency(Number(cashFlow.outflow||0))}</strong></div>
+                <div>Net Cash: <strong className={Number(cashFlow.netCash||0)>=0?'text-green-600':'text-red-600'}>{formatCurrency(Number(cashFlow.netCash||0))}</strong></div>
+              </>: <div className='text-muted-foreground text-xs'>No data loaded</div>}
+            </CardContent></Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Lists */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <Card className='erp-card'>
+            <CardHeader><CardTitle className='flex items-center gap-2'><DollarSign className='h-5 w-5'/>Revenue Entries ({revenueQuery.data?.length||0})</CardTitle></CardHeader>
+            <CardContent>
+              <div className='space-y-3 max-h-[360px] overflow-y-auto pr-1'>
+                {loading && <p className='text-sm text-muted-foreground'>Loading...</p>}
+                {!loading && (revenueQuery.data||[]).map(r=> (
+                  <div key={(r.invoiceNumber||'INV') + r.date} className='p-3 rounded-lg bg-secondary flex justify-between'>
                     <div>
-                      <CardTitle className="text-lg">{report.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {report.description}
-                      </p>
+                      <p className='font-medium'>{r.invoiceNumber || 'Invoice'}</p>
+                      <p className='text-xs text-muted-foreground'>{r.date}</p>
+                    </div>
+                    <div className='text-right'>
+                      <p className='font-semibold text-green-600'>+{formatCurrency(Number(r.amount)||0)}</p>
+                      <p className='text-xs text-muted-foreground'>{r.status}</p>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Format:</span>
-                    <span className="font-medium">{report.type}</span>
+                ))}
+                {!loading && (revenueQuery.data||[]).length===0 && <p className='text-xs text-muted-foreground'>No revenue records in range.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
+          <Card className='erp-card'>
+            <CardHeader><CardTitle className='flex items-center gap-2'><BarChart3 className='h-5 w-5'/>Expense Entries ({expenseQuery.data?.length||0})</CardTitle></CardHeader>
+            <CardContent>
+              <div className='space-y-3 max-h-[360px] overflow-y-auto pr-1'>
+                {loading && <p className='text-sm text-muted-foreground'>Loading...</p>}
+                {!loading && (expenseQuery.data||[]).map(e=> (
+                  <div key={(e.title||'EXP') + e.date} className='p-3 rounded-lg bg-secondary flex justify-between'>
+                    <div>
+                      <p className='font-medium'>{e.title || 'Expense'}</p>
+                      <p className='text-xs text-muted-foreground'>{e.date}</p>
+                    </div>
+                    <div className='text-right'>
+                      <p className='font-semibold text-red-600'>-{formatCurrency(Number(e.amount)||0)}</p>
+                      <p className='text-xs text-muted-foreground'>{e.category}</p>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Last Generated:</span>
-                    <span className="font-medium">{report.lastGenerated}</span>
-                  </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      className="flex-1 bg-gradient-primary hover:opacity-90"
-                      onClick={() => handleDownload(report.id, report.title)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                ))}
+                {!loading && (expenseQuery.data||[]).length===0 && <p className='text-xs text-muted-foreground'>No expense records in range.</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );

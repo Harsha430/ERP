@@ -58,25 +58,53 @@ export default function Attendance() {
         hrService.getAttendance(),
         hrService.getEmployees(),
       ]);
-
-      // Transform attendance data to match the interface
-      const transformedAttendance = attendanceData.map(record => ({
-        ...record,
+      const transformedAttendance = attendanceData.map((record: any) => ({
+        id: record.id,
+        employeeId: record.employeeId,
         employeeName: `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown',
-        date: formatDate(record.date).split('T')[0], // Extract date part
+        date: record.date || new Date().toISOString().split('T')[0],
+        status: mapBackendStatus(record.status),
+        checkIn: record.checkInTime ? toTime(record.checkInTime) : '',
+        checkOut: record.checkOutTime ? toTime(record.checkOutTime) : '',
       }));
-
       setAttendanceRecords(transformedAttendance);
       setEmployees(employeesData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch attendance data. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to fetch attendance data.', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toTime = (val: string) => {
+    // Expect HH:MM[:SS] or ISO; return HH:MM
+    try {
+      if (/^\d{2}:\d{2}/.test(val)) return val.substring(0,5);
+      const d = new Date(val);
+      return d.toTimeString().substring(0,5);
+    } catch { return ''; }
+  };
+
+  const mapBackendStatus = (status: string): AttendanceRecord['status'] => {
+    switch ((status||'').toUpperCase()) {
+      case 'PRESENT': return 'Present';
+      case 'ABSENT': return 'Absent';
+      case 'LATE': return 'Late';
+      case 'HALF_DAY': return 'Half Day';
+      case 'WORK_FROM_HOME': return 'Sick Leave'; // reuse color styling
+      default: return 'Present';
+    }
+  };
+
+  const mapFrontendStatusToEnum = (status: AttendanceRecord['status']): string => {
+    switch (status) {
+      case 'Present': return 'PRESENT';
+      case 'Absent': return 'ABSENT';
+      case 'Late': return 'LATE';
+      case 'Half Day': return 'HALF_DAY';
+      case 'Sick Leave': return 'WORK_FROM_HOME';
+      default: return 'PRESENT';
     }
   };
 
@@ -144,69 +172,33 @@ export default function Attendance() {
   };
 
   // Mark attendance
-  const handleMarkAttendance = () => {
+  const handleMarkAttendance = async () => {
     if (!newAttendance.employeeId) {
-      toast({
-        title: "Error",
-        description: "Please select an employee.",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Please select an employee.', variant: 'destructive' });
       return;
     }
-
-    const employee = employees.find(emp => emp.id === newAttendance.employeeId);
-    if (!employee) return;
-
-    // Check if attendance already exists for this date
-    const existingAttendance = attendanceRecords.find(
-      record => record.employeeId === newAttendance.employeeId && record.date === selectedDate
-    );
-
-    if (existingAttendance) {
-      // Update existing record
-      const updatedRecords = attendanceRecords.map(record =>
-        record.id === existingAttendance.id
-          ? {
-              ...record,
-              status: newAttendance.status,
-              checkIn: newAttendance.checkIn,
-              checkOut: newAttendance.checkOut,
-            }
-          : record
-      );
-      setAttendanceRecords(updatedRecords);
-      
-      toast({
-        title: "Success",
-        description: "Attendance updated successfully!",
-      });
-    } else {
-      // Create new record
-      const newRecord: AttendanceRecord = {
-        id: generateAttendanceId(),
-        employeeId: newAttendance.employeeId,
-        employeeName: `${employee.firstName} ${employee.lastName}`,
-        date: selectedDate,
-        status: newAttendance.status,
-        checkIn: newAttendance.checkIn,
-        checkOut: newAttendance.checkOut,
-      };
-
-      setAttendanceRecords([...attendanceRecords, newRecord]);
-      
-      toast({
-        title: "Success",
-        description: "Attendance marked successfully!",
-      });
+    const existing = attendanceRecords.find(r => r.employeeId === newAttendance.employeeId && r.date === selectedDate);
+    const payload = {
+      employeeId: newAttendance.employeeId,
+      date: selectedDate,
+      status: mapFrontendStatusToEnum(newAttendance.status),
+      checkInTime: newAttendance.checkIn || null,
+      checkOutTime: newAttendance.checkOut || null,
+    };
+    try {
+      if (existing) {
+        await hrService.updateAttendance(existing.id, payload);
+        toast({ title: 'Success', description: 'Attendance updated.' });
+      } else {
+        await hrService.createAttendance(payload);
+        toast({ title: 'Success', description: 'Attendance recorded.' });
+      }
+      await fetchData();
+    } catch (e:any) {
+      toast({ title: 'Error', description: 'Failed to save attendance.', variant: 'destructive' });
     }
-
     setIsMarkAttendanceOpen(false);
-    setNewAttendance({
-      employeeId: '',
-      status: 'Present',
-      checkIn: '',
-      checkOut: '',
-    });
+    setNewAttendance({ employeeId: '', status: 'Present', checkIn: '', checkOut: '' });
   };
 
   // Get available employees for attendance marking

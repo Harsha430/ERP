@@ -25,6 +25,9 @@ export function Header() {
     }
   };
 
+  const roles = user?.roles || [];
+  const initials = user ? user.username.substring(0, 2).toUpperCase() : 'U';
+
   return (
     <motion.header
       initial={{ y: -50 }}
@@ -33,10 +36,14 @@ export function Header() {
     >
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold">ERP System</h1>
-        {user && (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
-            {user.role.toUpperCase()}
-          </span>
+        {roles.length > 0 && (
+          <div className="flex items-center gap-1">
+            {roles.map(r => (
+              <span key={r} className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(r)}`}>
+                {r.toUpperCase()}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
@@ -47,12 +54,12 @@ export function Header() {
               <Button variant="ghost" className="flex items-center gap-2 hover:bg-secondary">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-gradient-primary text-white text-sm">
-                    {user.name.split(' ').map(n => n[0]).join('')}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-left">
-                  <div className="text-sm font-medium">{user.name}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                  <div className="text-sm font-medium">{user.username}</div>
+                  <div className="text-xs text-muted-foreground">{roles.join(', ')}</div>
                 </div>
               </Button>
             </DropdownMenuTrigger>

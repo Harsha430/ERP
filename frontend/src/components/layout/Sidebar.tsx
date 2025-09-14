@@ -14,7 +14,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
@@ -32,6 +33,8 @@ const menuItems: MenuItem[] = [
   // HR Module
   { id: 'hr-dashboard', title: 'HR Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['hr', 'admin'] },
   { id: 'employees', title: 'Employees', icon: Users, path: '/employees', roles: ['hr', 'admin'] },
+  { id: 'departments', title: 'Departments', icon: Layers, path: '/departments', roles: ['hr','admin'] },
+  { id: 'positions', title: 'Positions', icon: Layers, path: '/positions', roles: ['hr','admin'] },
   { id: 'attendance', title: 'Attendance', icon: Clock, path: '/attendance', roles: ['hr', 'admin'] },
   { id: 'leaves', title: 'Leave Requests', icon: Calendar, path: '/leaves', roles: ['hr', 'admin'] },
   { id: 'payroll', title: 'Payroll', icon: Banknote, path: '/payroll', roles: ['hr', 'admin'] },
@@ -52,8 +55,11 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
 
-  const filteredMenuItems = menuItems.filter(item => 
-    user && item.roles.includes(user.role)
+  const userRoles = user?.roles || [];
+  const primaryRole = userRoles[0] as UserRole | undefined;
+
+  const filteredMenuItems = menuItems.filter(item =>
+    user && userRoles.some(r => item.roles.includes(r))
   );
 
   const getModuleTitle = (userRole: UserRole) => {
@@ -68,23 +74,19 @@ export function Sidebar() {
   const getModuleItems = (userRole: UserRole) => {
     if (userRole === 'admin') {
       return {
-        'HR': filteredMenuItems.filter(item => ['hr-dashboard', 'employees', 'attendance', 'leaves', 'payroll'].includes(item.id)),
-        'Finance': filteredMenuItems.filter(item => ['finance-dashboard', 'accounts', 'transactions', 'budgeting', 'reports'].includes(item.id)),
-        'Admin': filteredMenuItems.filter(item => ['users', 'add-user'].includes(item.id))
+        'HR': filteredMenuItems.filter(item => ['hr-dashboard','employees','departments','positions','attendance','leaves','payroll'].includes(item.id)),
+        'Finance': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','budgeting','reports'].includes(item.id)),
+        'Admin': filteredMenuItems.filter(item => ['users','add-user'].includes(item.id))
       };
     } else if (userRole === 'hr') {
-      return {
-        'HR Module': filteredMenuItems
-      };
+      return { 'HR Module': filteredMenuItems.filter(item => ['hr-dashboard','employees','departments','positions','attendance','leaves','payroll'].includes(item.id)) };
     } else if (userRole === 'finance') {
-      return {
-        'Finance Module': filteredMenuItems
-      };
+      return { 'Finance Module': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','budgeting','reports'].includes(item.id)) };
     }
     return {};
   };
 
-  const moduleGroups = user ? getModuleItems(user.role) : {};
+  const moduleGroups = primaryRole ? getModuleItems(primaryRole) : {};
 
   return (
     <motion.aside
@@ -110,8 +112,8 @@ export function Sidebar() {
                   <span className="text-white font-bold text-sm">ERP</span>
                 </div>
                 <div>
-                  <h2 className="font-semibold text-sm">{user ? getModuleTitle(user.role) : 'ERP System'}</h2>
-                  <p className="text-xs text-muted-foreground">{user?.name}</p>
+                  <h2 className="font-semibold text-sm">{primaryRole ? getModuleTitle(primaryRole) : 'ERP System'}</h2>
+                  <p className="text-xs text-muted-foreground">{user?.username}</p>
                 </div>
               </motion.div>
             )}

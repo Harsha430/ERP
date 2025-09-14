@@ -1,75 +1,110 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type UserRole = 'hr' | 'finance' | 'admin';
 
 interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
+  username: string;
+  roles: UserRole[];
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
-  logout: () => void;
   isAuthenticated: boolean;
+  login: (identifier: string, password: string, expectedRole?: UserRole) => Promise<boolean>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Sample users for demo
-const mockUsers: User[] = [
-  { id: '1', name: 'Sarah Johnson', email: 'hr@company.com', role: 'hr' },
-  { id: '2', name: 'Mike Chen', email: 'finance@company.com', role: 'finance' },
-  { id: '3', name: 'Alex Rodriguez', email: 'admin@company.com', role: 'admin' },
-];
+const API_BASE = 'http://localhost:8081';
+
+function mapAuthorities(authorities: string[]): UserRole[] {
+  return authorities
+    .map(a => a.replace(/^ROLE_/i, '').toLowerCase())
+    .filter(a => ['admin','hr','finance'].includes(a)) as UserRole[];
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
-  const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
-    // Simple demo authentication
-    const foundUser = mockUsers.find(u => u.email === email && u.role === role);
-    if (foundUser && password === 'demo123') {
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
+  const refresh = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.authenticated) {
+        const roles = mapAuthorities(Array.from(data.roles || []));
+        const u: User = { username: data.username, roles };
+        setUser(u);
+        localStorage.setItem('erp_user', JSON.stringify(u));
+      } else {
+        setUser(null);
+        localStorage.removeItem('erp_user');
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    const cached = localStorage.getItem('erp_user');
+    if (cached) {
+      try { setUser(JSON.parse(cached)); } catch { /* ignore */ }
+    }
+    refresh();
+  }, []);
+
+  const login = async (identifier: string, password: string, expectedRole?: UserRole): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+      if (!res.ok) return false;
+
+      // Directly fetch current user to avoid state race
+      const meRes = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+      if (!meRes.ok) return false;
+      const me = await meRes.json();
+      if (!me.authenticated) return false;
+      const roles = mapAuthorities(Array.from(me.roles || []));
+      const current: User = { username: me.username, roles };
+      setUser(current);
+      localStorage.setItem('erp_user', JSON.stringify(current));
+
+      if (expectedRole && !roles.includes(expectedRole)) {
+        await logout();
+        return false;
+      }
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch {/* ignore */}
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem('erp_user');
   };
-
-  // Check if user is logged in on mount
-  useState(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-  });
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        login, 
-        logout, 
-        isAuthenticated: !!user 
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, refresh }}>
+      {loaded && children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

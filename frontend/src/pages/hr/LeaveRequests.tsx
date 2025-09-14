@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar, Check, X, Clock, Plus, Eye, Search, Filter, Users, CalendarDays, FileText, BarChart3, Loader2 } from 'lucide-react';
-import { hrService, formatDate } from '@/services/apiService';
+import { hrService } from '@/services/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
 interface LeaveRequest {
@@ -104,66 +104,66 @@ export default function LeaveRequests() {
         hrService.getLeaveBalances(),
         hrService.getEmployees(),
       ]);
-
-      // Transform leave requests to match interface
-      const transformedRequests = leaveRequestsData.map(request => ({
-        ...request,
+      const transformedRequests = leaveRequestsData.map((request: any) => ({
+        id: request.id || request.leaveId || request.requestId || '',
+        employeeId: request.employeeId,
         employeeName: `${request.firstName || ''} ${request.lastName || ''}`.trim() || 'Unknown',
-        startDate: formatDate(request.startDate).split('T')[0],
-        endDate: formatDate(request.endDate).split('T')[0],
-        appliedDate: formatDate(request.appliedDate).split('T')[0],
-        approvedDate: request.approvedDate ? formatDate(request.approvedDate).split('T')[0] : undefined,
+        type: request.leaveType || request.type || 'UNKNOWN',
+        startDate: request.startDate || '',
+        endDate: request.endDate || '',
+        status: (request.status || 'PENDING').toUpperCase(),
+        days: calcDaysRaw(request.startDate, request.endDate),
+        reason: request.reason || '',
+        appliedDate: request.appliedDate || request.createdAt || '',
+        approvedBy: request.approvedBy,
+        approvedDate: request.approvedDate,
+        rejectionReason: request.rejectionReason,
       }));
-
-      // Transform leave balances
-      const transformedBalances = leaveBalancesData.map(balance => ({
-        ...balance,
+      const transformedBalances = leaveBalancesData.map((balance: any) => ({
+        id: balance.id,
+        employeeId: balance.employeeId,
         employeeName: `${balance.firstName || ''} ${balance.lastName || ''}`.trim() || 'Unknown',
+        leaveType: balance.leaveType,
+        totalDays: balance.totalDays,
+        usedDays: balance.usedDays,
+        remainingDays: balance.remainingDays,
+        year: balance.year
       }));
-
-      // Transform employees to match frontend interface
-      const transformedEmployees = employeesData.map(employee => ({
+      const transformedEmployees = employeesData.map((employee: any) => ({
         id: employee.employeeId || employee.id,
         employeeId: employee.employeeId,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
-        status: employee.status === 'ACTIVE' ? 'Active' as 'Active' : 'Inactive' as 'Inactive'
+        status: employee.status === 'ACTIVE' ? 'Active' : 'Inactive'
       }));
-
       setLeaveRequests(transformedRequests);
       setLeaveBalances(transformedBalances);
       setEmployees(transformedEmployees);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch leave request data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+      toast({ title: 'Error', description: 'Failed to fetch leave data', variant: 'destructive' });
+    } finally { setLoading(false); }
   };
+
+  const calcDaysRaw = (s?: string, e?: string) => {
+    if (!s || !e) return 0; const start = new Date(s); const end = new Date(e); if (isNaN(start.getTime())||isNaN(end.getTime())) return 0; return Math.ceil((end.getTime()-start.getTime())/(1000*60*60*24))+1; };
 
   // Filter leave requests
   const filteredRequests = useMemo(() => {
-    return leaveRequests.filter(request => {
-      const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           request.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           request.type.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || request.status.toLowerCase() === statusFilter;
-      const matchesType = typeFilter === 'all' || request.type.toLowerCase().replace(' ', '-') === typeFilter;
+    return leaveRequests.filter(r => {
+      const matchesSearch = r.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || r.id.toLowerCase().includes(searchTerm.toLowerCase()) || r.type.toLowerCase().includes(searchTerm.toLowerCase());
+      const normStatus = displayStatus(r.status).toLowerCase();
+      const matchesStatus = statusFilter === 'all' || normStatus === statusFilter;
+      const normType = r.type.toLowerCase().replace(/\s+/g,'-');
+      const matchesType = typeFilter === 'all' || normType === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [leaveRequests, searchTerm, statusFilter, typeFilter]);
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const total = leaveRequests.length;
     const pending = leaveRequests.filter(r => r.status === 'PENDING').length;
     const approved = leaveRequests.filter(r => r.status === 'APPROVED').length;
     const rejected = leaveRequests.filter(r => r.status === 'REJECTED').length;
-    
-    return { total, pending, approved, rejected };
+    return { total: leaveRequests.length, pending, approved, rejected };
   }, [leaveRequests]);
 
   // Calculate days between dates
@@ -175,110 +175,62 @@ export default function LeaveRequests() {
     return diffDays;
   };
 
-  // Generate leave request ID
-  const generateLeaveId = () => {
-    const maxId = Math.max(...leaveRequests.map(req => parseInt(req.id.replace('LR', ''))));
-    return `LR${(maxId + 1).toString().padStart(3, '0')}`;
+  // Apply for leave
+  const handleApplyLeave = async () => {
+    if (!newLeaveRequest.employeeId || !newLeaveRequest.type || !newLeaveRequest.startDate || !newLeaveRequest.endDate || !newLeaveRequest.reason) {
+      toast({ title: 'Error', description: 'Fill all required fields', variant: 'destructive'}); return; }
+    try {
+      await hrService.createLeaveRequest({
+        employeeId: newLeaveRequest.employeeId,
+        type: newLeaveRequest.type.replace(/\s+/g,'_').toUpperCase(),
+        startDate: newLeaveRequest.startDate,
+        endDate: newLeaveRequest.endDate,
+        reason: newLeaveRequest.reason
+      });
+      toast({ title: 'Success', description: 'Leave application submitted' });
+      setIsApplyLeaveOpen(false);
+      setNewLeaveRequest({ employeeId:'', type:'', startDate:'', endDate:'', reason:'' });
+      fetchData();
+    } catch (e:any) {
+      toast({ title: 'Error', description: e.message || 'Failed to apply', variant: 'destructive'});
+    }
+  };
+
+  // Approve leave request
+  const handleApprove = async (requestId: string) => {
+    try {
+      await hrService.approveLeaveRequest(requestId, 'SYSTEM');
+      toast({ title: 'Approved', description: 'Leave request approved' });
+      fetchData();
+    } catch (e:any) {
+      toast({ title: 'Error', description: e.message || 'Approve failed', variant: 'destructive'});
+    }
+  };
+
+  // Reject leave request
+  const handleReject = async (requestId: string, reason: string = 'No reason provided') => {
+    try {
+      await hrService.rejectLeaveRequest(requestId, 'SYSTEM', reason);
+      toast({ title: 'Rejected', description: 'Leave request rejected' });
+      fetchData();
+    } catch (e:any) {
+      toast({ title: 'Error', description: e.message || 'Reject failed', variant: 'destructive'});
+    }
+  };
+
+  const displayStatus = (raw: string) => {
+    switch ((raw||'').toUpperCase()) { case 'APPROVED': return 'Approved'; case 'REJECTED': return 'Rejected'; case 'PENDING': return 'Pending'; default: return raw; }
   };
 
   // Get status badge
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Approved':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{status}</Badge>;
-      case 'Pending':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{status}</Badge>;
-      case 'Rejected':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">{status}</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+    const s = displayStatus(status);
+    switch (s) {
+      case 'Approved': return <Badge className='bg-green-100 text-green-800 hover:bg-green-100'>{s}</Badge>;
+      case 'Pending': return <Badge className='bg-yellow-100 text-yellow-800 hover:bg-yellow-100'>{s}</Badge>;
+      case 'Rejected': return <Badge className='bg-red-100 text-red-800 hover:bg-red-100'>{s}</Badge>;
+      default: return <Badge>{s}</Badge>;
     }
-  };
-
-  // Apply for leave
-  const handleApplyLeave = () => {
-    if (!newLeaveRequest.employeeId || !newLeaveRequest.type || !newLeaveRequest.startDate || 
-        !newLeaveRequest.endDate || !newLeaveRequest.reason) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const employee = employees.find(emp => emp.id === newLeaveRequest.employeeId);
-    if (!employee) return;
-
-    const days = calculateDays(newLeaveRequest.startDate, newLeaveRequest.endDate);
-    const newRequest: LeaveRequest = {
-      id: generateLeaveId(),
-      employeeId: newLeaveRequest.employeeId,
-      employeeName: `${employee.firstName} ${employee.lastName}`,
-      type: newLeaveRequest.type,
-      startDate: newLeaveRequest.startDate,
-      endDate: newLeaveRequest.endDate,
-      status: 'PENDING' as const,
-      days: days,
-      reason: newLeaveRequest.reason,
-      appliedDate: new Date().toISOString().split('T')[0],
-    };
-
-    setLeaveRequests([newRequest, ...leaveRequests]);
-    setIsApplyLeaveOpen(false);
-    setNewLeaveRequest({
-      employeeId: '',
-      type: '',
-      startDate: '',
-      endDate: '',
-      reason: '',
-    });
-    
-    toast({
-      title: "Success",
-      description: "Leave application submitted successfully!",
-    });
-  };
-
-  // Approve leave request
-  const handleApprove = (requestId: string) => {
-    const updatedRequests = leaveRequests.map(request =>
-      request.id === requestId
-        ? {
-            ...request,
-            status: 'APPROVED' as const,
-            approvedBy: 'Current User',
-            approvedDate: new Date().toISOString().split('T')[0],
-          }
-        : request
-    );
-    
-    setLeaveRequests(updatedRequests);
-    toast({
-      title: "Success",
-      description: "Leave request approved successfully!",
-    });
-  };
-
-  // Reject leave request
-  const handleReject = (requestId: string, reason: string = 'No reason provided') => {
-    const updatedRequests = leaveRequests.map(request =>
-      request.id === requestId
-        ? {
-            ...request,
-            status: 'REJECTED' as const,
-            approvedBy: 'Current User',
-            approvedDate: new Date().toISOString().split('T')[0],
-            rejectionReason: reason,
-          }
-        : request
-    );
-    
-    setLeaveRequests(updatedRequests);
-    toast({
-      title: "Success",
-      description: "Leave request rejected.",
-    });
   };
 
   // Open details dialog
@@ -830,3 +782,4 @@ export default function LeaveRequests() {
     </div>
   );
 }
+
