@@ -99,6 +99,7 @@ export const financeService = {
   createExpense: (expense: any) => apiRequest<any>('/expenses', { method: 'POST', body: JSON.stringify(expense) }),
   updateExpense: (id: string, expense: any) => apiRequest<any>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(expense) }),
   deleteExpense: (id: string) => apiRequest<void>(`/expenses/${id}`, { method: 'DELETE' }),
+  markExpensePaid: (id: string) => apiRequest<any>(`/expenses/${id}/pay`, { method: 'POST' }),
   // Department advanced endpoints
 
   // Invoice APIs

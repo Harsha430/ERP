@@ -19,10 +19,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -42,7 +39,7 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private JournalEntryRepository journalEntryRepository;
     @Autowired private LedgerRepository ledgerRepository;
     @Autowired private PayrollEntryRepository payrollEntryRepository;
-    @Autowired private SequenceGeneratorService sequenceGeneratorService;
+    @Autowired(required = false) private SequenceGeneratorService sequenceGeneratorService;
 
     // User Account Repository
     @Autowired private UserAccountRepository userAccountRepository;
@@ -52,25 +49,40 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("🚀 Starting Data Initialization...");
-        
-        // Clear existing data
-        clearExistingData();
-        
-        // Initialize data in proper order (considering relationships)
+        System.out.println("🚀 Starting Data Initialization check...");
+
+        // Idempotency guard: if any core collection already has data, skip seeding
+        boolean alreadySeeded = departmentRepository.count() > 0
+                || accountRepository.count() > 0
+                || userAccountRepository.count() > 0
+                || employeeRepository.count() > 0;
+
+        if (alreadySeeded) {
+            System.out.println("ℹ️ Existing data detected (skipping seeding). Set environment variable ERP_SEED_FORCE=1 to force reseed.");
+            // Optional force reseed flag
+            String force = System.getenv("ERP_SEED_FORCE");
+            if (force == null || !force.equals("1")) {
+                return; // Do nothing - keep existing data
+            }
+            System.out.println("⚠️ Force seeding enabled. Clearing existing data...");
+            clearExistingData();
+        } else {
+            System.out.println("📦 No existing data detected. Seeding fresh dataset...");
+        }
+
+        // Proceed with seeding (fresh or forced)
         List<Department> departments = initializeDepartments();
         List<Position> positions = initializePositions(departments);
         List<Employee> employees = initializeEmployees(departments, positions);
         List<Account> accounts = initializeAccounts();
-        
-        // Initialize transaction data
+
         initializeAttendance(employees);
         initializeLeaveBalances(employees);
         initializeLeaveRequests(employees);
         initializeExpenses(accounts);
         initializeInvoices(accounts);
         initializePayroll(employees, accounts);
-        initializeAdditionalFinanceData(accounts); // new additional dummy data
+        initializeAdditionalFinanceData(accounts);
         initializeUsers();
 
         System.out.println("✅ Data Initialization Completed Successfully!");
@@ -78,27 +90,23 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void clearExistingData() {
-        System.out.println("🧹 Clearing existing data...");
-        
-        // Clear HR data
+        System.out.println("🧹 Clearing existing data (forced)...");
+        // HR
         leaveBalanceRepository.deleteAll();
         leaveRequestRepository.deleteAll();
         attendanceRepository.deleteAll();
         employeeRepository.deleteAll();
         positionRepository.deleteAll();
         departmentRepository.deleteAll();
-        
-        // Clear Finance data
+        // Finance
         ledgerRepository.deleteAll();
         journalEntryRepository.deleteAll();
         payrollEntryRepository.deleteAll();
         invoiceRepository.deleteAll();
         expenseRepository.deleteAll();
         accountRepository.deleteAll();
-        
-        // Clear User data
+        // Users
         userAccountRepository.deleteAll();
-
         System.out.println("✅ Existing data cleared");
     }
 
