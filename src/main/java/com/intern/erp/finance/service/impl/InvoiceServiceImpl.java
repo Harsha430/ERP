@@ -1,5 +1,6 @@
 package com.intern.erp.finance.service.impl;
 
+import com.intern.erp.config.SequenceGeneratorService;
 import com.intern.erp.finance.model.Invoice;
 import com.intern.erp.finance.model.JournalEntry;
 import com.intern.erp.finance.model.LedgerEntry;
@@ -23,16 +24,19 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final JournalEntryRepository journalEntryRepository;
     private final LedgerRepository ledgerRepository;
     private final InvoiceRepository invoiceRepository;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
     @Autowired
-    public InvoiceServiceImpl(JournalEntryRepository journalEntryRepository, LedgerRepository ledgerRepository, InvoiceRepository invoiceRepository) {
+    public InvoiceServiceImpl(JournalEntryRepository journalEntryRepository, LedgerRepository ledgerRepository, InvoiceRepository invoiceRepository, SequenceGeneratorService sequenceGeneratorService) {
         this.journalEntryRepository = journalEntryRepository;
         this.ledgerRepository = ledgerRepository;
         this.invoiceRepository = invoiceRepository;
+        this.sequenceGeneratorService = sequenceGeneratorService;
     }
 
     @Override
     public Invoice createInvoice(Invoice invoice) {
+        invoice.setId(sequenceGeneratorService.getSequenceNumber(Invoice.class.getSimpleName()));
         return invoiceRepository.save(invoice);
     }
 
@@ -52,6 +56,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // Journal Entry
             JournalEntry journalEntry = new JournalEntry();
+            journalEntry.setId(sequenceGeneratorService.getSequenceNumber(JournalEntry.class.getSimpleName()));
             journalEntry.setSource(EntrySource.INVOICE);
             journalEntry.setNarration("Invoice " + invoice.getInvoiceNumber() + " paid by " + invoice.getCustomerName());
             journalEntry.setEntryDate(LocalDate.now());
@@ -62,6 +67,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // Ledger Entry
             LedgerEntry ledgerEntry = new LedgerEntry();
+            ledgerEntry.setId(sequenceGeneratorService.getSequenceNumber(LedgerEntry.class.getSimpleName()));
             ledgerEntry.setTransactionDate(LocalDateTime.now());
             ledgerEntry.setAmount(invoice.getTotalAmount()); // ✅ total
             ledgerEntry.setCreditAccount(invoice.getCreditAccount());

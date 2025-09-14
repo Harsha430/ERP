@@ -11,6 +11,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -36,6 +37,7 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private JournalEntryRepository journalEntryRepository;
     @Autowired private LedgerRepository ledgerRepository;
     @Autowired private PayrollEntryRepository payrollEntryRepository;
+    @Autowired private SequenceGeneratorService sequenceGeneratorService;
 
     private final Random random = new Random();
 
@@ -363,7 +365,6 @@ public class DataInitializer implements CommandLineRunner {
         Account utilitiesAccount = accounts.stream().filter(a -> a.getName().equals("Utilities Expense")).findFirst().orElse(null);
         Account travelAccount = accounts.stream().filter(a -> a.getName().equals("Travel Expense")).findFirst().orElse(null);
         Account suppliesAccount = accounts.stream().filter(a -> a.getName().equals("Office Supplies")).findFirst().orElse(null);
-        
         Expense[] expenses = {
             createExpense("Office Rent - September 2025", "Monthly office space rental", new BigDecimal("250000.00"), ExpenseCategory.RENT, rentAccount, cashAccount, PaymentStatus.PAID, LocalDate.of(2025, 9, 1)),
             createExpense("Office Rent - August 2025", "Monthly office space rental", new BigDecimal("250000.00"), ExpenseCategory.RENT, rentAccount, cashAccount, PaymentStatus.PAID, LocalDate.of(2025, 8, 1)),
@@ -374,7 +375,13 @@ public class DataInitializer implements CommandLineRunner {
             createExpense("Software Licenses", "Annual software licensing fees", new BigDecimal("150000.00"), ExpenseCategory.OTHER, suppliesAccount, cashAccount, PaymentStatus.PENDING, LocalDate.of(2025, 9, 8)),
             createExpense("Team Lunch - Project Completion", "Team celebration lunch", new BigDecimal("12000.00"), ExpenseCategory.OTHER, suppliesAccount, cashAccount, PaymentStatus.PAID, LocalDate.of(2025, 9, 13)),
         };
-        
+        for (Expense e : expenses) {
+            if (e.getId() == null) {
+                long seq = sequenceGeneratorService.getSequenceNumber(Expense.class.getSimpleName());
+                e.setId(seq);
+            }
+            System.out.println("[INIT] Expense prepared id=" + e.getId() + " title=" + e.getTitle());
+        }
         expenseRepository.saveAll(Arrays.asList(expenses));
         System.out.println("✅ Created " + expenses.length + " expense records");
     }
@@ -385,7 +392,6 @@ public class DataInitializer implements CommandLineRunner {
         Account receivableAccount = accounts.stream().filter(a -> a.getName().equals("Accounts Receivable")).findFirst().orElse(null);
         Account serviceRevenueAccount = accounts.stream().filter(a -> a.getName().equals("Service Revenue")).findFirst().orElse(null);
         Account consultingRevenueAccount = accounts.stream().filter(a -> a.getName().equals("Consulting Revenue")).findFirst().orElse(null);
-        
         Invoice[] invoices = {
             createInvoice("INV-2025-001", "TechCorp Solutions", "finance@techcorp.com", new BigDecimal("750000.00"), new BigDecimal("135000.00"), receivableAccount, serviceRevenueAccount, PaymentStatus.PAID, LocalDate.of(2025, 8, 15), LocalDate.of(2025, 9, 14)),
             createInvoice("INV-2025-002", "Global Industries Ltd", "accounting@global-ind.com", new BigDecimal("1125000.00"), new BigDecimal("202500.00"), receivableAccount, consultingRevenueAccount, PaymentStatus.PAID, LocalDate.of(2025, 8, 20), LocalDate.of(2025, 9, 19)),
@@ -394,31 +400,34 @@ public class DataInitializer implements CommandLineRunner {
             createInvoice("INV-2025-005", "Digital Marketing Pro", "finance@digimkt.com", new BigDecimal("630000.00"), new BigDecimal("113400.00"), receivableAccount, serviceRevenueAccount, PaymentStatus.PAID, LocalDate.of(2025, 9, 10), LocalDate.of(2025, 10, 10)),
             createInvoice("INV-2025-006", "Healthcare Solutions", "accounts@healthsol.com", new BigDecimal("1365000.00"), new BigDecimal("245700.00"), receivableAccount, consultingRevenueAccount, PaymentStatus.PENDING, LocalDate.of(2025, 9, 12), LocalDate.of(2025, 10, 12)),
         };
-        
+        for (Invoice i : invoices) {
+            if (i.getId() == null) {
+                i.setId(sequenceGeneratorService.getSequenceNumber(Invoice.class.getSimpleName()));
+            }
+            System.out.println("[INIT] Invoice prepared id=" + i.getId() + " number=" + i.getInvoiceNumber());
+        }
         invoiceRepository.saveAll(Arrays.asList(invoices));
         System.out.println("✅ Created " + invoices.length + " invoice records");
     }
 
     private void initializePayroll(List<Employee> employees, List<Account> accounts) {
         System.out.println("💰 Creating Payroll Records...");
-        
-        // Create payroll for current month
         for (Employee employee : employees) {
             PayrollEntry payroll = new PayrollEntry();
-            payroll.setEmployeeId(Long.valueOf(Math.abs(employee.getId().hashCode()))); // Convert string ID to positive long
+            if (payroll.getId() == null) {
+                payroll.setId(sequenceGeneratorService.getSequenceNumber(PayrollEntry.class.getSimpleName()));
+            }
+            payroll.setEmployeeId(Long.valueOf(Math.abs(employee.getId().hashCode())));
             payroll.setEmployeeName(employee.getFullName());
-            payroll.setGrossSalary(employee.getSalary().divide(new BigDecimal("12"))); // Monthly salary
-            
-            // Calculate deductions (tax + insurance)
-            BigDecimal deductions = payroll.getGrossSalary().multiply(new BigDecimal("0.22")); // 22% total deductions
+            payroll.setGrossSalary(employee.getSalary().divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP));
+            BigDecimal deductions = payroll.getGrossSalary().multiply(new BigDecimal("0.22")).setScale(2, RoundingMode.HALF_UP);
             payroll.setDeductions(deductions);
-            payroll.setNetSalary(payroll.getGrossSalary().subtract(deductions));
+            payroll.setNetSalary(payroll.getGrossSalary().subtract(deductions).setScale(2, RoundingMode.HALF_UP));
             payroll.setPayDate(LocalDate.of(2025, 9, 30));
             payroll.setStatus(com.intern.erp.finance.model.enums.PaymentStatus.PAID);
-            
+            System.out.println("[INIT] Payroll prepared id=" + payroll.getId() + " emp=" + payroll.getEmployeeName());
             payrollEntryRepository.save(payroll);
         }
-        
         System.out.println("✅ Created payroll records for " + employees.size() + " employees");
     }
 
@@ -542,3 +551,4 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("🔗 Connection established successfully!");
     }
 }
+

@@ -1,5 +1,6 @@
 package com.intern.erp.finance.service.impl;
 
+import com.intern.erp.config.SequenceGeneratorService;
 import com.intern.erp.finance.model.Expense;
 import com.intern.erp.finance.model.JournalEntry;
 import com.intern.erp.finance.model.LedgerEntry;
@@ -26,17 +27,20 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final JournalEntryRepository journalEntryRepository;
     private final LedgerRepository ledgerRepository;
     private final ExpenseRepository expenseRepository;
+    private final SequenceGeneratorService sequenceGeneratorService;
 
     @Autowired
-    public ExpenseServiceImpl(JournalEntryRepository journalEntryRepository, LedgerRepository ledgerRepository, ExpenseRepository expenseRepository) {
+    public ExpenseServiceImpl(JournalEntryRepository journalEntryRepository, LedgerRepository ledgerRepository, ExpenseRepository expenseRepository, SequenceGeneratorService sequenceGeneratorService) {
         this.journalEntryRepository = journalEntryRepository;
         this.ledgerRepository = ledgerRepository;
         this.expenseRepository = expenseRepository;
+        this.sequenceGeneratorService = sequenceGeneratorService;
     }
 
     @Override
     @Transactional
     public Expense addExpense(Expense expense) {
+        expense.setId(sequenceGeneratorService.getSequenceNumber(Expense.class.getSimpleName()));
         return expenseRepository.save(expense);
     }
 
@@ -54,8 +58,8 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.setStatus(PAID);
             expenseRepository.save(expense);
 
-            // Journal Entry
             JournalEntry journalEntry = new JournalEntry();
+            journalEntry.setId(sequenceGeneratorService.getSequenceNumber(JournalEntry.class.getSimpleName()));
             journalEntry.setEntryDate(LocalDate.now());
             journalEntry.setAmount(expense.getAmount());
             journalEntry.setNarration(expense.getDescription());
@@ -64,8 +68,8 @@ public class ExpenseServiceImpl implements ExpenseService {
             journalEntry.setSource(EXPENSE);
             JournalEntry savedJournal = journalEntryRepository.save(journalEntry);
 
-            // Ledger Entry
             LedgerEntry ledgerEntry = new LedgerEntry();
+            ledgerEntry.setId(sequenceGeneratorService.getSequenceNumber(LedgerEntry.class.getSimpleName()));
             ledgerEntry.setAmount(expense.getAmount());
             ledgerEntry.setCreditAccount(expense.getCreditAccount());
             ledgerEntry.setDebitAccount(expense.getDebitAccount());
