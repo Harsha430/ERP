@@ -1,12 +1,26 @@
 @echo off
-echo 🚀 Starting ERP Application with MongoDB Atlas...
-echo.
-echo MongoDB Connection: mongodb+srv://9922008101_db_user:00000@cluster0.mkptdj7.mongodb.net/mydatabase
-echo.
-echo Please wait while the application starts...
-echo.
+setlocal ENABLEDELAYEDEXPANSION
 
-cd /d "c:\Users\DEEPAK BUSA\OneDrive\DEEPAK\OneDrive\Documents\Personal\ERP"
-mvn clean spring-boot:run
+echo ============================================
+echo   ERP Backend Launcher (MongoDB Atlas)
+echo ============================================
 
+REM Current project root
+cd /d "C:\Users\harsh\Desktop\ERP"
+
+if not exist mvnw.cmd (
+  echo Maven wrapper not found. Exiting.
+  pause
+  exit /b 1
+)
+
+REM Optional: clean & build (uncomment if you want a fresh build each time)
+REM call mvnw.cmd -q -DskipTests clean package
+
+REM Run Spring Boot directly (fast startup, recompiles changes if devtools on classpath)
+call mvnw.cmd spring-boot:run -DskipTests
+
+echo.
+echo Server stopped.
 pause
+endlocal

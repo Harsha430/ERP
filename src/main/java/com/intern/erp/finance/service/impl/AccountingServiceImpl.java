@@ -16,11 +16,15 @@ public class AccountingServiceImpl implements AccountingService {
 
     @Autowired
     private AccountRepository accountRepository;
+    @Autowired(required = false)
     private SequenceGeneratorService sequenceGeneratorService;
 
     @Override
     public Account createAccount(Account account) {
-        account.setId(sequenceGeneratorService.getSequenceNumber(Account.class.getSimpleName()));
+        if (account.getId() == null && sequenceGeneratorService != null) {
+            account.setId(sequenceGeneratorService.getSequenceNumber(Account.class.getSimpleName()));
+        }
+        if (account.getIsActive() == null) account.setIsActive(true);
         return accountRepository.save(account);
     }
 
@@ -41,5 +45,13 @@ public class AccountingServiceImpl implements AccountingService {
         account.setIsActive(false);
         accountRepository.save(account);
         return "Account Deactivated";
+    }
+
+    @Override
+    public String activateAccount(Long id) {
+        Account account = getAccountById(id);
+        account.setIsActive(true);
+        accountRepository.save(account);
+        return "Account Activated";
     }
 }

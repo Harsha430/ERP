@@ -6,8 +6,12 @@ import com.intern.erp.finance.repository.*;
 import com.intern.erp.hr.model.*;
 import com.intern.erp.hr.model.enums.*;
 import com.intern.erp.hr.repository.*;
+import com.intern.erp.users.model.UserAccount;
+import com.intern.erp.users.model.UserRole;
+import com.intern.erp.users.repository.UserAccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,6 +22,7 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -38,6 +43,10 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired private LedgerRepository ledgerRepository;
     @Autowired private PayrollEntryRepository payrollEntryRepository;
     @Autowired private SequenceGeneratorService sequenceGeneratorService;
+
+    // User Account Repository
+    @Autowired private UserAccountRepository userAccountRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
 
     private final Random random = new Random();
 
@@ -61,7 +70,9 @@ public class DataInitializer implements CommandLineRunner {
         initializeExpenses(accounts);
         initializeInvoices(accounts);
         initializePayroll(employees, accounts);
-        
+        initializeAdditionalFinanceData(accounts); // new additional dummy data
+        initializeUsers();
+
         System.out.println("✅ Data Initialization Completed Successfully!");
         printDataSummary();
     }
@@ -85,6 +96,9 @@ public class DataInitializer implements CommandLineRunner {
         expenseRepository.deleteAll();
         accountRepository.deleteAll();
         
+        // Clear User data
+        userAccountRepository.deleteAll();
+
         System.out.println("✅ Existing data cleared");
     }
 
@@ -429,6 +443,87 @@ public class DataInitializer implements CommandLineRunner {
             payrollEntryRepository.save(payroll);
         }
         System.out.println("✅ Created payroll records for " + employees.size() + " employees");
+    }
+
+    private void initializeUsers() {
+        System.out.println("👤 Seeding user accounts...");
+        UserAccount admin = new UserAccount();
+        admin.setId(sequenceGeneratorService.getSequenceNumber(UserAccount.class.getSimpleName()));
+        admin.setUsername("admin");
+        admin.setEmail("admin@company.com");
+        admin.setPassword(passwordEncoder.encode("demo123"));
+        admin.setRoles(Set.of(UserRole.ADMIN));
+        admin.setEnabled(true);
+
+        UserAccount hr = new UserAccount();
+        hr.setId(sequenceGeneratorService.getSequenceNumber(UserAccount.class.getSimpleName()));
+        hr.setUsername("hr");
+        hr.setEmail("hr@company.com");
+        hr.setPassword(passwordEncoder.encode("demo123"));
+        hr.setRoles(Set.of(UserRole.HR));
+        hr.setEnabled(true);
+
+        UserAccount finance = new UserAccount();
+        finance.setId(sequenceGeneratorService.getSequenceNumber(UserAccount.class.getSimpleName()));
+        finance.setUsername("finance");
+        finance.setEmail("finance@company.com");
+        finance.setPassword(passwordEncoder.encode("demo123"));
+        finance.setRoles(Set.of(UserRole.FINANCE));
+        finance.setEnabled(true);
+
+        userAccountRepository.saveAll(Arrays.asList(admin, hr, finance));
+        System.out.println("✅ Seeded 3 user accounts (admin/hr/finance) with password demo123");
+    }
+
+    private void initializeAdditionalFinanceData(List<Account> accounts) {
+        System.out.println("🧪 Adding extra finance dummy data...");
+        Account cash = accounts.stream().filter(a -> a.getName().equals("Cash")).findFirst().orElse(null);
+        Account supplies = accounts.stream().filter(a -> a.getName().equals("Office Supplies")).findFirst().orElse(null);
+        Account travel = accounts.stream().filter(a -> a.getName().equals("Travel Expense")).findFirst().orElse(null);
+        Account utilities = accounts.stream().filter(a -> a.getName().equals("Utilities Expense")).findFirst().orElse(null);
+        Account serviceRevenue = accounts.stream().filter(a -> a.getName().equals("Service Revenue")).findFirst().orElse(null);
+        Account consultingRevenue = accounts.stream().filter(a -> a.getName().equals("Consulting Revenue")).findFirst().orElse(null);
+        Account receivable = accounts.stream().filter(a -> a.getName().equals("Accounts Receivable")).findFirst().orElse(null);
+        if (cash == null || supplies == null || travel == null || utilities == null) {
+            System.out.println("⚠️ Skipping extra expenses due to missing accounts");
+            return;
+        }
+        // Extra random expenses
+        for (int i = 0; i < 10; i++) {
+            Expense e = new Expense();
+            e.setTitle("Misc Expense " + (i + 1));
+            e.setDescription("Auto-generated expense record #" + (i + 1));
+            e.setAmount(new BigDecimal(5000 + random.nextInt(45000)).setScale(2));
+            e.setExpenseDate(LocalDate.now().minusDays(random.nextInt(40)));
+            e.setCategory(i % 3 == 0 ? ExpenseCategory.TRAVEL : i % 3 == 1 ? ExpenseCategory.OTHER : ExpenseCategory.UTILITIES);
+            e.setStatus(random.nextBoolean() ? PaymentStatus.PAID : PaymentStatus.PENDING);
+            e.setDebitAccount((i % 3 == 0) ? travel : (i % 3 == 1 ? supplies : utilities));
+            e.setCreditAccount(cash);
+            e.setId(sequenceGeneratorService.getSequenceNumber(Expense.class.getSimpleName()));
+            expenseRepository.save(e);
+        }
+        // Extra random invoices
+        if (receivable != null && serviceRevenue != null && consultingRevenue != null) {
+            for (int i = 0; i < 5; i++) {
+                Invoice inv = new Invoice();
+                inv.setInvoiceNumber("INV-EXTRA-" + (100 + i));
+                inv.setInvoiceDate(LocalDate.now().minusDays(5 + i));
+                inv.setCustomerName("Client " + (char)('A' + i));
+                inv.setCustomerEmail("client" + i + "@example.com");
+                BigDecimal amount = new BigDecimal(200000 + random.nextInt(800000));
+                BigDecimal tax = amount.multiply(new BigDecimal("0.18")).setScale(2, RoundingMode.HALF_UP);
+                inv.setAmount(amount);
+                inv.setTaxAmount(tax);
+                inv.setTotalAmount(amount.add(tax));
+                inv.setStatus(i % 2 == 0 ? PaymentStatus.PAID : PaymentStatus.PENDING);
+                inv.setDueDate(LocalDate.now().plusDays(20 + i));
+                inv.setDebitAccount(receivable);
+                inv.setCreditAccount(i % 2 == 0 ? serviceRevenue : consultingRevenue);
+                inv.setId(sequenceGeneratorService.getSequenceNumber(Invoice.class.getSimpleName()));
+                invoiceRepository.save(inv);
+            }
+        }
+        System.out.println("✅ Extra finance dummy data added");
     }
 
     // Helper methods for generating random data

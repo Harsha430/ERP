@@ -11,4 +11,5 @@ public interface AccountingService {
     List<Account> getAllAccounts();
     Account getAccountById(Long id);
     String deactivateAccount(Long id);
+    String activateAccount(Long id);
 }
