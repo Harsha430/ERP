@@ -1,17 +1,18 @@
 package com.intern.erp.hr.service;
 
-import com.intern.erp.hr.model.LeaveRequest;
-import com.intern.erp.hr.model.enums.LeaveStatus;
-import com.intern.erp.hr.model.enums.LeaveType;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import com.intern.erp.hr.model.LeaveRequest;
+import com.intern.erp.hr.model.enums.LeaveStatus;
+import com.intern.erp.hr.model.enums.LeaveType;
 
 public interface LeaveService {
     
     LeaveRequest applyForLeave(LeaveRequest leaveRequest);
     Optional<LeaveRequest> getLeaveRequestById(String id);
+    List<LeaveRequest> getAllLeaveRequests();
     List<LeaveRequest> getLeaveRequestsByEmployee(String employeeId);
     List<LeaveRequest> getLeaveRequestsByStatus(LeaveStatus status);
     List<LeaveRequest> getLeaveRequestsByType(LeaveType leaveType);

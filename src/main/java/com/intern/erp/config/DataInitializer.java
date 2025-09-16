@@ -1,25 +1,53 @@
 package com.intern.erp.config;
 
-import com.intern.erp.finance.model.*;
-import com.intern.erp.finance.model.enums.*;
-import com.intern.erp.finance.repository.*;
-import com.intern.erp.hr.model.*;
-import com.intern.erp.hr.model.enums.*;
-import com.intern.erp.hr.repository.*;
-import com.intern.erp.users.model.UserAccount;
-import com.intern.erp.users.model.UserRole;
-import com.intern.erp.users.repository.UserAccountRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+
+import com.intern.erp.finance.model.Account;
+import com.intern.erp.finance.model.Expense;
+import com.intern.erp.finance.model.Invoice;
+import com.intern.erp.finance.model.PayrollEntry;
+import com.intern.erp.finance.model.enums.AccountType;
+import com.intern.erp.finance.model.enums.ExpenseCategory;
+import com.intern.erp.finance.model.enums.PaymentStatus;
+import com.intern.erp.finance.repository.AccountRepository;
+import com.intern.erp.finance.repository.ExpenseRepository;
+import com.intern.erp.finance.repository.InvoiceRepository;
+import com.intern.erp.finance.repository.JournalEntryRepository;
+import com.intern.erp.finance.repository.LedgerRepository;
+import com.intern.erp.finance.repository.PayrollEntryRepository;
+import com.intern.erp.hr.model.Attendance;
+import com.intern.erp.hr.model.Department;
+import com.intern.erp.hr.model.Employee;
+import com.intern.erp.hr.model.LeaveBalance;
+import com.intern.erp.hr.model.LeaveRequest;
+import com.intern.erp.hr.model.Position;
+import com.intern.erp.hr.model.enums.AttendanceStatus;
+import com.intern.erp.hr.model.enums.EmployeeStatus;
+import com.intern.erp.hr.model.enums.EmployeeType;
+import com.intern.erp.hr.model.enums.LeaveStatus;
+import com.intern.erp.hr.model.enums.LeaveType;
+import com.intern.erp.hr.repository.AttendanceRepository;
+import com.intern.erp.hr.repository.DepartmentRepository;
+import com.intern.erp.hr.repository.EmployeeRepository;
+import com.intern.erp.hr.repository.LeaveBalanceRepository;
+import com.intern.erp.hr.repository.LeaveRequestRepository;
+import com.intern.erp.hr.repository.PositionRepository;
+import com.intern.erp.users.model.UserAccount;
+import com.intern.erp.users.model.UserRole;
+import com.intern.erp.users.repository.UserAccountRepository;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -439,7 +467,8 @@ public class DataInitializer implements CommandLineRunner {
             if (payroll.getId() == null) {
                 payroll.setId(sequenceGeneratorService.getSequenceNumber(PayrollEntry.class.getSimpleName()));
             }
-            payroll.setEmployeeId(Long.valueOf(Math.abs(employee.getId().hashCode())));
+            payroll.setEmployeeId(employee.getId()); // Set as String (MongoDB ObjectId)
+            payroll.setEmployeeCode(employee.getEmployeeId()); // Set business employee code (EMP001, etc.)
             payroll.setEmployeeName(employee.getFullName());
             payroll.setGrossSalary(employee.getSalary().divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP));
             BigDecimal deductions = payroll.getGrossSalary().multiply(new BigDecimal("0.22")).setScale(2, RoundingMode.HALF_UP);

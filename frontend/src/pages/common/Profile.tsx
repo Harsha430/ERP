@@ -15,13 +15,13 @@ export default function Profile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: user?.username || '',
+    email: user?.username ? `${user.username}@company.com` : '',
     phone: '+91 98765 43210',
     address: 'Mumbai, Maharashtra, India',
-    department: user?.role === 'hr' ? 'Human Resources' : user?.role === 'finance' ? 'Finance' : 'Administration',
+    department: user?.roles?.includes('hr') ? 'Human Resources' : user?.roles?.includes('finance') ? 'Finance' : 'Administration',
     joinDate: '2023-01-15',
-    employeeId: user?.role === 'hr' ? 'HR001' : user?.role === 'finance' ? 'FIN001' : 'ADM001',
+    employeeId: user?.roles?.includes('hr') ? 'HR001' : user?.roles?.includes('finance') ? 'FIN001' : 'ADM001',
   });
 
   const handleSave = () => {
@@ -33,8 +33,9 @@ export default function Profile() {
     });
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
+  const getRoleBadgeColor = (roles: string[]) => {
+    const mainRole = roles?.[0] || '';
+    switch (mainRole) {
       case 'hr': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       case 'finance': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'admin': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
@@ -74,14 +75,14 @@ export default function Profile() {
               <div className="flex flex-col items-center text-center space-y-4">
                 <Avatar className="h-24 w-24">
                   <AvatarFallback className="bg-gradient-primary text-white text-2xl">
-                    {user?.name.split(' ').map(n => n[0]).join('')}
+                    {user?.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="text-xl font-semibold">{profileData.name}</h3>
                   <p className="text-muted-foreground">{profileData.email}</p>
-                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(user?.role || '')}`}>
-                    {user?.role?.toUpperCase()}
+                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(user?.roles || [])}`}>
+                    {user?.roles?.[0]?.toUpperCase() || 'USER'}
                   </span>
                 </div>
                 <div className="w-full space-y-2 text-sm">
@@ -204,7 +205,7 @@ export default function Profile() {
                       <Label htmlFor="role">Role</Label>
                       <Input
                         id="role"
-                        value={user?.role?.toUpperCase()}
+                        value={user?.roles?.[0]?.toUpperCase() || 'USER'}
                         disabled
                         className="bg-muted"
                       />

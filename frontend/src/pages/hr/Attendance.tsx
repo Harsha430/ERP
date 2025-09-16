@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Clock, Calendar, Download, Users, UserCheck, UserX, Timer, Plus, Edit, Search, Filter, BarChart3, Loader2 } from 'lucide-react';
+import { Clock, Calendar, Download, Users, UserCheck, UserX, Timer, Plus, Edit, Search, Filter, BarChart3, RefreshCw } from 'lucide-react';
 import { hrService, formatDate } from '@/services/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -58,15 +58,35 @@ export default function Attendance() {
         hrService.getAttendance(),
         hrService.getEmployees(),
       ]);
-      const transformedAttendance = attendanceData.map((record: any) => ({
-        id: record.id,
-        employeeId: record.employeeId,
-        employeeName: `${record.firstName || ''} ${record.lastName || ''}`.trim() || 'Unknown',
-        date: record.date || new Date().toISOString().split('T')[0],
-        status: mapBackendStatus(record.status),
-        checkIn: record.checkInTime ? toTime(record.checkInTime) : '',
-        checkOut: record.checkOutTime ? toTime(record.checkOutTime) : '',
-      }));
+      
+      // Create a map of employeeId to employee name for lookup
+      const employeeMap = new Map();
+      employeesData.forEach((employee: any) => {
+        const name = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown';
+        // Use the MongoDB ObjectId (id field) as the key, not employeeId field
+        employeeMap.set(employee.id, name);
+        // Also keep employeeId as fallback (EMP001, etc.)
+        employeeMap.set(employee.employeeId, name);
+      });
+      
+      const transformedAttendance = attendanceData.map((record: any) => {
+        // The record.employeeId should now match employee.id from the employee map
+        const employeeName = employeeMap.get(record.employeeId) || 'Unknown';
+        
+        // Find the actual employee record to get the proper employeeId (EMP001, etc.)
+        const employee = employeesData.find((emp: any) => emp.id === record.employeeId);
+        const displayEmployeeId = employee?.employeeId || record.employeeId;
+        
+        return {
+          id: record.id,
+          employeeId: displayEmployeeId,
+          employeeName: employeeName,
+          date: record.date || new Date().toISOString().split('T')[0],
+          status: mapBackendStatus(record.status),
+          checkIn: record.checkInTime ? toTime(record.checkInTime) : '',
+          checkOut: record.checkOutTime ? toTime(record.checkOutTime) : '',
+        };
+      });
       setAttendanceRecords(transformedAttendance);
       setEmployees(employeesData);
     } catch (error) {
@@ -206,9 +226,9 @@ export default function Attendance() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2 text-lg">Loading attendance data...</span>
+      <div className='flex items-center justify-center min-h-[300px] gap-2'>
+        <RefreshCw className='h-5 w-5 animate-spin'/>
+        <span>Loading attendance data...</span>
       </div>
     );
   }

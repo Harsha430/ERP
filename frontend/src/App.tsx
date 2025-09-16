@@ -8,7 +8,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/layout/Layout";
 
 // Auth Pages
-import Index from "./pages/Index";
+import Login from "./pages/auth/Login";
 import HRLogin from "./pages/auth/HRLogin";
 import FinanceLogin from "./pages/auth/FinanceLogin";
 import AdminLogin from "./pages/auth/AdminLogin";
@@ -50,7 +50,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Login />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/hr-login" element={<HRLogin />} />
             <Route path="/finance-login" element={<FinanceLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />

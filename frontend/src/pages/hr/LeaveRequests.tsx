@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Check, X, Clock, Plus, Eye, Search, Filter, Users, CalendarDays, FileText, BarChart3, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar, Check, X, Clock, Plus, Eye, Search, Filter, Users, CalendarDays, FileText, BarChart3, RefreshCw } from 'lucide-react';
 import { hrService } from '@/services/apiService';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -104,37 +105,57 @@ export default function LeaveRequests() {
         hrService.getLeaveBalances(),
         hrService.getEmployees(),
       ]);
-      const transformedRequests = leaveRequestsData.map((request: any) => ({
-        id: request.id || request.leaveId || request.requestId || '',
-        employeeId: request.employeeId,
-        employeeName: `${request.firstName || ''} ${request.lastName || ''}`.trim() || 'Unknown',
-        type: request.leaveType || request.type || 'UNKNOWN',
-        startDate: request.startDate || '',
-        endDate: request.endDate || '',
-        status: (request.status || 'PENDING').toUpperCase(),
-        days: calcDaysRaw(request.startDate, request.endDate),
-        reason: request.reason || '',
-        appliedDate: request.appliedDate || request.createdAt || '',
-        approvedBy: request.approvedBy,
-        approvedDate: request.approvedDate,
-        rejectionReason: request.rejectionReason,
+      const transformedEmployees = employeesData.map((employee: any) => ({
+        id: employee.id,  // MongoDB ObjectId
+        employeeId: employee.employeeId,  // EMP001, EMP002, etc.
+        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
+        status: (employee.status === 'ACTIVE' ? 'Active' : 'Inactive') as 'Active' | 'Inactive'
       }));
+
+      // Create a map of employeeId to employee name for lookup
+      const employeeMap = new Map();
+      employeesData.forEach((employee: any) => {
+        const name = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown';
+        // Use the MongoDB ObjectId (id field) as the key, not employeeId field
+        employeeMap.set(employee.id, name);
+        // Also keep employeeId as fallback (EMP001, etc.)
+        employeeMap.set(employee.employeeId, name);
+      });
+
+
+
+      const transformedRequests = leaveRequestsData.map((request: any) => {
+        // The request.employeeId should now match employee.id from the employee map
+        const employeeName = employeeMap.get(request.employeeId) || 'Unknown';
+        
+        return {
+          id: request.id || request.leaveId || request.requestId || '',
+          employeeId: request.employeeId,
+          employeeName: employeeName,
+          type: request.leaveType || request.type || 'UNKNOWN',
+          startDate: request.startDate || '',
+          endDate: request.endDate || '',
+          status: (request.status || 'PENDING').toUpperCase(),
+          days: calcDaysRaw(request.startDate, request.endDate),
+          reason: request.reason || '',
+          appliedDate: request.appliedAt || request.appliedDate || request.createdAt || '', // Use appliedAt from DB
+          approvedBy: request.approvedBy,
+          approvedDate: request.approvedDate,
+          rejectionReason: request.rejectionReason,
+        };
+      });
+
       const transformedBalances = leaveBalancesData.map((balance: any) => ({
         id: balance.id,
         employeeId: balance.employeeId,
-        employeeName: `${balance.firstName || ''} ${balance.lastName || ''}`.trim() || 'Unknown',
+        employeeName: employeeMap.get(balance.employeeId) || 'Unknown',
         leaveType: balance.leaveType,
         totalDays: balance.totalDays,
         usedDays: balance.usedDays,
-        remainingDays: balance.remainingDays,
+        remainingDays: (balance.totalDays || 0) - (balance.usedDays || 0), // Calculate remaining days
         year: balance.year
       }));
-      const transformedEmployees = employeesData.map((employee: any) => ({
-        id: employee.employeeId || employee.id,
-        employeeId: employee.employeeId,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
-        status: employee.status === 'ACTIVE' ? 'Active' : 'Inactive'
-      }));
+
       setLeaveRequests(transformedRequests);
       setLeaveBalances(transformedBalances);
       setEmployees(transformedEmployees);
@@ -146,14 +167,80 @@ export default function LeaveRequests() {
   const calcDaysRaw = (s?: string, e?: string) => {
     if (!s || !e) return 0; const start = new Date(s); const end = new Date(e); if (isNaN(start.getTime())||isNaN(end.getTime())) return 0; return Math.ceil((end.getTime()-start.getTime())/(1000*60*60*24))+1; };
 
+  const displayStatus = (raw: string) => {
+    switch ((raw||'').toUpperCase()) { case 'APPROVED': return 'Approved'; case 'REJECTED': return 'Rejected'; case 'PENDING': return 'Pending'; default: return raw; }
+  };
+
+  const formatRequestId = (id: string) => {
+    // Create a more user-friendly ID using the last 6 characters
+    if (!id || id.length <= 6) return id;
+    const shortId = id.slice(-6).toUpperCase();
+    return `REQ-${shortId}`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'Invalid Date';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
+  // Helper function to normalize leave types for consistent filtering
+  const normalizeLeaveType = (type: string): string => {
+    if (!type) return '';
+    // Convert to lowercase and handle various formats
+    const normalized = type.toLowerCase()
+      .replace(/[_\s]+/g, '-') // Replace underscores and spaces with hyphens
+      .replace(/-+/g, '-')     // Replace multiple hyphens with single hyphen
+      .trim();
+    
+    // Map common variations to standard format
+    const typeMapping: { [key: string]: string } = {
+      'annual': 'annual-leave',
+      'sick': 'sick-leave', 
+      'personal': 'personal-leave',
+      'emergency': 'emergency-leave',
+      'vacation': 'annual-leave',
+      'medical': 'sick-leave'
+    };
+    
+    return typeMapping[normalized] || normalized;
+  };
+
+  // Helper function to format leave type for display
+  const formatLeaveType = (type: string): string => {
+    if (!type) return 'Unknown';
+    
+    // Convert various formats to readable display names
+    const displayMapping: { [key: string]: string } = {
+      'annual-leave': 'Annual Leave',
+      'sick-leave': 'Sick Leave',
+      'personal-leave': 'Personal Leave',
+      'emergency-leave': 'Emergency Leave',
+      'vacation': 'Annual Leave',
+      'medical': 'Sick Leave'
+    };
+    
+    const normalized = normalizeLeaveType(type);
+    return displayMapping[normalized] || type.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   // Filter leave requests
   const filteredRequests = useMemo(() => {
     return leaveRequests.filter(r => {
       const matchesSearch = r.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || r.id.toLowerCase().includes(searchTerm.toLowerCase()) || r.type.toLowerCase().includes(searchTerm.toLowerCase());
       const normStatus = displayStatus(r.status).toLowerCase();
       const matchesStatus = statusFilter === 'all' || normStatus === statusFilter;
-      const normType = r.type.toLowerCase().replace(/\s+/g,'-');
-      const matchesType = typeFilter === 'all' || normType === typeFilter;
+      const normalizedRequestType = normalizeLeaveType(r.type);
+      const matchesType = typeFilter === 'all' || normalizedRequestType === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [leaveRequests, searchTerm, statusFilter, typeFilter]);
@@ -218,10 +305,6 @@ export default function LeaveRequests() {
     }
   };
 
-  const displayStatus = (raw: string) => {
-    switch ((raw||'').toUpperCase()) { case 'APPROVED': return 'Approved'; case 'REJECTED': return 'Rejected'; case 'PENDING': return 'Pending'; default: return raw; }
-  };
-
   // Get status badge
   const getStatusBadge = (status: string) => {
     const s = displayStatus(status);
@@ -241,31 +324,61 @@ export default function LeaveRequests() {
 
   // Open balance view
   const openBalanceView = (employeeId: string) => {
-    const balance = leaveBalances.find(b => b.employeeId === employeeId);
-    if (balance) {
-      setSelectedEmployeeBalance(balance);
-      setIsBalanceViewOpen(true);
+    // Find all leave balance records for this employee
+    const employeeBalances = leaveBalances.filter(b => b.employeeId === employeeId);
+    
+    if (employeeBalances.length === 0) {
+      toast({ title: 'No balance data', description: 'No leave balance data found for this employee.', variant: 'destructive' });
+      return;
     }
+
+    // Get employee name from the first balance record
+    const employeeName = employeeBalances[0]?.employeeName || 'Unknown';
+    
+    // Find the actual employee record to get the proper employeeId (EMP001, etc.)
+    const employee = employees.find(emp => emp.id === employeeId);
+    const displayEmployeeId = employee?.employeeId || employeeId;
+
+    // Create aggregated balance structure
+    const getBalanceByType = (leaveType: string) => {
+      const balance = employeeBalances.find(b => b.leaveType?.toUpperCase() === leaveType.toUpperCase());
+      return {
+        total: balance?.totalDays || 0,
+        used: balance?.usedDays || 0,
+        remaining: balance?.remainingDays || 0
+      };
+    };
+
+    const aggregatedBalance = {
+      employeeId: displayEmployeeId,
+      employeeName: employeeName,
+      annualLeave: getBalanceByType('ANNUAL'),
+      sickLeave: getBalanceByType('SICK'),
+      personalLeave: getBalanceByType('PERSONAL')
+    };
+    setSelectedEmployeeBalance(aggregatedBalance);
+    setIsBalanceViewOpen(true);
   };
 
   const leaveTypes = ['Annual Leave', 'Sick Leave', 'Personal Leave', 'Emergency Leave', 'Maternity Leave', 'Paternity Leave'];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2 text-lg">Loading leave requests...</span>
+      <div className='flex items-center justify-center min-h-[300px] gap-2'>
+        <RefreshCw className='h-5 w-5 animate-spin'/>
+        <span>Loading leave requests...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+    <TooltipProvider>
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
         <div>
           <h1 className="text-3xl font-bold">Leave Management</h1>
           <p className="text-muted-foreground">Manage employee leave applications and approvals</p>
@@ -510,7 +623,7 @@ export default function LeaveRequests() {
                       transition={{ delay: index * 0.05 }}
                       className="hover:bg-secondary"
                     >
-                      <TableCell className="font-medium">{request.id}</TableCell>
+                      <TableCell className="font-medium">{formatRequestId(request.id)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{request.employeeName}</span>
@@ -523,47 +636,72 @@ export default function LeaveRequests() {
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell>{request.type}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {formatLeaveType(request.type)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{new Date(request.startDate).toLocaleDateString()}</div>
-                          <div className="text-muted-foreground">to {new Date(request.endDate).toLocaleDateString()}</div>
+                          <div>{formatDate(request.startDate)}</div>
+                          <div className="text-muted-foreground">to {formatDate(request.endDate)}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{request.days} days</Badge>
                       </TableCell>
-                      <TableCell>{new Date(request.appliedDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDate(request.appliedDate)}</TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-1">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => openDetailsDialog(request)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          {request.status === 'Pending' && (
-                            <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button 
                                 variant="outline" 
-                                size="sm" 
-                                className="text-green-600 hover:bg-green-50"
-                                onClick={() => handleApprove(request.id)}
+                                size="sm"
+                                onClick={() => openDetailsDialog(request)}
                               >
-                                <Check className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>View Details</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          
+                          {request.status === 'PENDING' && (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className="text-red-600 hover:bg-red-50"
+                                    className="text-green-600 hover:bg-green-50"
+                                    onClick={() => handleApprove(request.id)}
                                   >
-                                    <X className="h-4 w-4" />
+                                    <Check className="h-4 w-4" />
                                   </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Approve Request</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="text-red-600 hover:bg-red-50"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Reject Request</p>
+                                    </TooltipContent>
+                                  </Tooltip>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
@@ -607,7 +745,7 @@ export default function LeaveRequests() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Request ID</Label>
-                  <p className="font-medium">{selectedRequest.id}</p>
+                  <p className="font-medium">{formatRequestId(selectedRequest.id)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
@@ -622,18 +760,18 @@ export default function LeaveRequests() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Leave Type</Label>
-                  <p className="font-medium">{selectedRequest.type}</p>
+                  <p className="font-medium">{formatLeaveType(selectedRequest.type)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Start Date</Label>
-                  <p className="font-medium">{new Date(selectedRequest.startDate).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(selectedRequest.startDate)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">End Date</Label>
-                  <p className="font-medium">{new Date(selectedRequest.endDate).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(selectedRequest.endDate)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Total Days</Label>
@@ -649,14 +787,14 @@ export default function LeaveRequests() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Applied Date</Label>
-                  <p className="font-medium">{new Date(selectedRequest.appliedDate).toLocaleDateString()}</p>
+                  <p className="font-medium">{formatDate(selectedRequest.appliedDate)}</p>
                 </div>
                 {selectedRequest.approvedDate && (
                   <div>
                     <Label className="text-muted-foreground">
                       {selectedRequest.status === 'APPROVED' ? 'Approved' : 'Rejected'} Date
                     </Label>
-                    <p className="font-medium">{new Date(selectedRequest.approvedDate).toLocaleDateString()}</p>
+                    <p className="font-medium">{formatDate(selectedRequest.approvedDate)}</p>
                   </div>
                 )}
               </div>
@@ -779,7 +917,8 @@ export default function LeaveRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 

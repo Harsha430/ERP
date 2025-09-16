@@ -38,6 +38,11 @@ public class LeaveServiceImpl implements LeaveService {
     }
     
     @Override
+    public List<LeaveRequest> getAllLeaveRequests() {
+        return leaveRequestRepository.findAll();
+    }
+    
+    @Override
     public List<LeaveRequest> getLeaveRequestsByEmployee(String employeeId) {
         return leaveRequestRepository.findByEmployeeId(employeeId);
     }

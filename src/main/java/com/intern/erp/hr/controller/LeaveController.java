@@ -1,18 +1,28 @@
 package com.intern.erp.hr.controller;
 
-import com.intern.erp.hr.model.LeaveRequest;
-import com.intern.erp.hr.model.enums.LeaveStatus;
-import com.intern.erp.hr.model.enums.LeaveType;
-import com.intern.erp.hr.service.LeaveService;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import com.intern.erp.hr.model.LeaveRequest;
+import com.intern.erp.hr.model.enums.LeaveStatus;
+import com.intern.erp.hr.model.enums.LeaveType;
+import com.intern.erp.hr.service.LeaveService;
 
 @RestController
 @RequestMapping("/api/hr/leave-requests")
@@ -27,6 +37,16 @@ public class LeaveController {
         try {
             LeaveRequest createdLeave = leaveService.applyForLeave(leaveRequest);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdLeave);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<LeaveRequest>> getAllLeaveRequests() {
+        try {
+            List<LeaveRequest> leaveRequests = leaveService.getAllLeaveRequests();
+            return ResponseEntity.ok(leaveRequests);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
