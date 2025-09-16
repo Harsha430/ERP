@@ -8,28 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { Building2, Lock, Mail } from 'lucide-react';
+import { getRoleBasedDashboard } from '@/utils/roleUtils';
 
-interface LoginFormProps {
-  role: UserRole;
-  title: string;
-  description: string;
-}
-
-export function LoginForm({ role, title, description }: LoginFormProps) {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-
-  // Helper function to get role-based dashboard path
-  const getRoleBasedDashboard = (roles: UserRole[]): string => {
-    if (roles.includes('admin')) return '/dashboard';
-    else if (roles.includes('hr')) return '/dashboard';
-    else if (roles.includes('finance')) return '/finance-dashboard';
-    return '/dashboard';
-  };
 
   // Redirect already authenticated users to their dashboard
   useEffect(() => {
@@ -45,33 +32,31 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
     setError('');
 
     try {
-      const success = await login(email, password, role);
+      // Login without specifying expected role - let backend determine user's role
+      const success = await login(email, password);
       if (success) {
-        navigate('/dashboard');
+        // Small delay to ensure user data is properly set in context
+        setTimeout(() => {
+          const userStr = localStorage.getItem('erp_user');
+          if (userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              const dashboardPath = getRoleBasedDashboard(user.roles);
+              navigate(dashboardPath);
+            } catch {
+              navigate('/dashboard');
+            }
+          } else {
+            navigate('/dashboard');
+          }
+        }, 150); // Slightly longer delay to ensure context updates
       } else {
-        setError('Invalid credentials. Use demo123 as password.');
+        setError('Invalid credentials. Please check your email and password.');
       }
     } catch (err) {
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getRoleColor = (role: UserRole) => {
-    switch (role) {
-      case 'hr': return 'from-blue-500 to-purple-600';
-      case 'finance': return 'from-green-500 to-teal-600';
-      case 'admin': return 'from-purple-500 to-pink-600';
-      default: return 'from-blue-500 to-purple-600';
-    }
-  };
-
-  const getDemoCredentials = (role: UserRole) => {
-    switch (role) {
-      case 'hr': return 'hr@company.com';
-      case 'finance': return 'finance@company.com';
-      case 'admin': return 'admin@company.com';
     }
   };
 
@@ -89,13 +74,15 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
-              className={`mx-auto w-16 h-16 rounded-full bg-gradient-to-r ${getRoleColor(role)} flex items-center justify-center`}
+              className="mx-auto w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center"
             >
               <Building2 className="w-8 h-8 text-white" />
             </motion.div>
             <div>
-              <CardTitle className="text-2xl font-bold">{title}</CardTitle>
-              <p className="text-muted-foreground mt-2">{description}</p>
+              <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+              <p className="text-muted-foreground mt-2">
+                Sign in to access your ERP dashboard
+              </p>
             </div>
           </CardHeader>
           
@@ -141,7 +128,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
 
               <Button 
                 type="submit" 
-                className={`w-full bg-gradient-to-r ${getRoleColor(role)} hover:opacity-90 transition-opacity`}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition-opacity"
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
@@ -151,20 +138,41 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
             <div className="mt-6 p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium text-muted-foreground mb-2">Demo Credentials:</p>
               <div className="text-sm space-y-1">
-                <p><strong>Email:</strong> {getDemoCredentials(role)}</p>
+                <p><strong>HR:</strong> hr@company.com</p>
+                <p><strong>Finance:</strong> finance@company.com</p>
+                <p><strong>Admin:</strong> admin@company.com</p>
                 <p><strong>Password:</strong> demo123</p>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                You'll be automatically redirected to your dashboard based on your role.
+              </p>
             </div>
 
             <div className="mt-4 text-center">
               <p className="text-sm text-muted-foreground">
-                Want automatic role detection?{' '}
-                <button 
-                  onClick={() => navigate('/login')}
-                  className="text-blue-600 hover:text-blue-800 underline font-medium"
-                >
-                  Use Unified Login
-                </button>
+                Prefer role-specific login?{' '}
+                <span className="space-x-2">
+                  <button 
+                    onClick={() => navigate('/hr-login')}
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    HR
+                  </button>
+                  <span>|</span>
+                  <button 
+                    onClick={() => navigate('/finance-login')}
+                    className="text-green-600 hover:text-green-800 underline"
+                  >
+                    Finance
+                  </button>
+                  <span>|</span>
+                  <button 
+                    onClick={() => navigate('/admin-login')}
+                    className="text-purple-600 hover:text-purple-800 underline"
+                  >
+                    Admin
+                  </button>
+                </span>
               </p>
             </div>
           </CardContent>

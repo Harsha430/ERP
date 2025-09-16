@@ -102,7 +102,7 @@ export const hrService = {
   rejectLeaveRequest: (id: string, rejectedBy: string, reason: string) => apiRequest<any>(`/hr/leave-requests/${id}/reject?${qs({ rejectedBy, reason })}`, { method: 'POST' }),
 
   // Leave Balances
-  getLeaveBalances: () => apiRequest<any[]>('/hr/leave-balances'),
+  getLeaveBalances: () => apiRequest<any[]>('/hr/leave-balances/raw'), // Use raw endpoint to get individual balance records
   getLeaveBalanceByEmployee: (employeeId: string) => apiRequest<any>(`/hr/leave-balances/employee/${employeeId}`),
 };
 

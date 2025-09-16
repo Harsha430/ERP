@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -15,11 +15,15 @@ import {
   ChevronLeft,
   ChevronRight,
   UserPlus,
-  Layers
+  Layers,
+  User,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface MenuItem {
   id: string;
@@ -53,7 +57,16 @@ const menuItems: MenuItem[] = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Update CSS custom property when collapsed state changes
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--sidebar-width', 
+      collapsed ? '64px' : '256px'
+    );
+  }, [collapsed]);
 
   const userRoles = user?.roles || [];
   const primaryRole = userRoles[0] as UserRole | undefined;
@@ -93,7 +106,7 @@ export function Sidebar() {
       initial={{ x: -280 }}
       animate={{ x: 0 }}
       className={cn(
-        "bg-card border-r border-border min-h-screen flex flex-col transition-all duration-300",
+        "bg-card border-r border-border h-screen flex flex-col transition-all duration-300 fixed left-0 top-0 z-50",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -131,8 +144,9 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-6">
-        {Object.entries(moduleGroups).map(([groupName, items]) => (
+      <div className="flex-1 flex flex-col min-h-0">
+        <nav className="p-4 space-y-4 overflow-y-auto max-h-[50vh]">
+          {Object.entries(moduleGroups).map(([groupName, items]) => (
           <div key={groupName}>
             <AnimatePresence>
               {!collapsed && (
@@ -179,7 +193,121 @@ export function Sidebar() {
             </ul>
           </div>
         ))}
-      </nav>
+        </nav>
+
+        {/* User Profile Section */}
+        <div className="border-t border-border p-3 mt-auto">
+        <AnimatePresence>
+          {!collapsed && (
+            <motion.h3
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider"
+            >
+              Account
+            </motion.h3>
+          )}
+        </AnimatePresence>
+
+        <div className="space-y-1">
+          {/* Profile Link */}
+          <button
+            onClick={() => navigate('/profile')}
+            className={cn(
+              "sidebar-item w-full text-left",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <User className="h-4 w-4 flex-shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="truncate"
+                >
+                  Profile
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+
+          {/* Settings Link */}
+          <button
+            onClick={() => navigate('/settings')}
+            className={cn(
+              "sidebar-item w-full text-left",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <Settings className="h-4 w-4 flex-shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="truncate"
+                >
+                  Settings
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={logout}
+            className={cn(
+              "sidebar-item w-full text-left text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="truncate"
+                >
+                  Logout
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+        </div>
+
+        {/* User Info Card */}
+        <AnimatePresence>
+          {!collapsed && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mt-3 p-2 bg-muted/50 rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-gradient-primary text-white text-xs">
+                    {user?.username ? user.username.substring(0, 2).toUpperCase() : 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user?.username}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {user?.roles?.[0]?.toUpperCase() || 'USER'}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </div>
+      </div>
     </motion.aside>
   );
 }

@@ -35,7 +35,7 @@ export function Header() {
       className="bg-card border-b border-border px-6 py-4 flex items-center justify-between"
     >
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold">ERP System</h1>
+        <h1 className="text-xl font-semibold">Enterprise Resource Planning System</h1>
         {roles.length > 0 && (
           <div className="flex items-center gap-1">
             {roles.map(r => (
