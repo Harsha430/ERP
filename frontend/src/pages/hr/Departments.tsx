@@ -681,14 +681,17 @@ export default function Departments() {
             <div className="space-y-2">
               <Label htmlFor="headEmployee">Head Employee</Label>
               <Select 
-                value={departmentForm.headEmployeeId || ''} 
-                onValueChange={(value) => setDepartmentForm(prev => ({...prev, headEmployeeId: value}))}
+                value={departmentForm.headEmployeeId || 'none'} 
+                onValueChange={(value) => setDepartmentForm(prev => ({
+                  ...prev, 
+                  headEmployeeId: value === 'none' ? '' : value
+                }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select head employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No head assigned</SelectItem>
+                  <SelectItem value="none">No head assigned</SelectItem>
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.firstName} {emp.lastName} ({emp.employeeId})

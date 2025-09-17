@@ -297,11 +297,19 @@ export default function LeaveRequests() {
   // Reject leave request
   const handleReject = async (requestId: string, reason: string = 'No reason provided') => {
     try {
-      await hrService.rejectLeaveRequest(requestId, 'SYSTEM', reason);
-      toast({ title: 'Rejected', description: 'Leave request rejected' });
-      fetchData();
-    } catch (e:any) {
-      toast({ title: 'Error', description: e.message || 'Reject failed', variant: 'destructive'});
+      console.log('Rejecting leave request:', requestId, 'with reason:', reason);
+      const response = await hrService.rejectLeaveRequest(requestId, 'SYSTEM', reason);
+      console.log('Rejection response:', response);
+      
+      toast({ title: 'Rejected', description: 'Leave request rejected successfully' });
+      await fetchData(); // Refresh the data
+    } catch (e: any) {
+      console.error('Rejection error:', e);
+      toast({ 
+        title: 'Error', 
+        description: e.message || 'Failed to reject leave request', 
+        variant: 'destructive'
+      });
     }
   };
 
@@ -686,41 +694,10 @@ export default function LeaveRequests() {
                                   <p>Approve Request</p>
                                 </TooltipContent>
                               </Tooltip>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="text-red-600 hover:bg-red-50"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Reject Request</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Reject Leave Request</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to reject this leave request for {request.employeeName}?
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => handleReject(request.id)}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      Reject
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <RejectDialog 
+                                request={request} 
+                                onReject={(requestId, reason) => handleReject(requestId, reason)}
+                              />
                             </>
                           )}
                         </div>
@@ -919,6 +896,102 @@ export default function LeaveRequests() {
       </Dialog>
       </div>
     </TooltipProvider>
+  );
+}
+
+// Reject Dialog Component
+function RejectDialog({ request, onReject }: { request: LeaveRequest, onReject: (requestId: string, reason: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!rejectionReason.trim()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await onReject(request.id, rejectionReason);
+      setIsOpen(false);
+      setRejectionReason('');
+    } catch (error) {
+      // Error handling is done in the parent component
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-red-600 hover:bg-red-50"
+            onClick={() => setIsOpen(true)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Reject Request</p>
+        </TooltipContent>
+      </Tooltip>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Reject Leave Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm">
+                <strong>Employee:</strong> {request.employeeName}
+              </p>
+              <p className="text-sm">
+                <strong>Leave Type:</strong> {request.type}
+              </p>
+              <p className="text-sm">
+                <strong>Duration:</strong> {request.startDate} to {request.endDate} ({request.days} days)
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="rejectionReason">Rejection Reason *</Label>
+              <Textarea
+                id="rejectionReason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Please provide a reason for rejecting this leave request..."
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsOpen(false);
+                setRejectionReason('');
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              disabled={!rejectionReason.trim() || isSubmitting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isSubmitting ? 'Rejecting...' : 'Reject Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

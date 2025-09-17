@@ -625,14 +625,17 @@ export default function Positions() {
               <div className="space-y-2">
                 <Label htmlFor="department">Department</Label>
                 <Select 
-                  value={positionForm.departmentId || ''} 
-                  onValueChange={(value) => setPositionForm(prev => ({...prev, departmentId: value}))}
+                  value={positionForm.departmentId || 'none'} 
+                  onValueChange={(value) => setPositionForm(prev => ({
+                    ...prev, 
+                    departmentId: value === 'none' ? '' : value
+                  }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No department</SelectItem>
+                    <SelectItem value="none">No department</SelectItem>
                     {departments.map(dept => (
                       <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                     ))}

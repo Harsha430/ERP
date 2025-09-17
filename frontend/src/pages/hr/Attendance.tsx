@@ -158,13 +158,31 @@ export default function Attendance() {
   const calculateWorkingHours = (checkIn: string, checkOut: string): string => {
     if (!checkIn || !checkOut) return '-';
     
-    const checkInTime = new Date(`2024-01-01 ${checkIn}`);
-    const checkOutTime = new Date(`2024-01-01 ${checkOut}`);
-    const diffMs = checkOutTime.getTime() - checkInTime.getTime();
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
+    try {
+      const checkInTime = new Date(`2024-01-01 ${checkIn}`);
+      let checkOutTime = new Date(`2024-01-01 ${checkOut}`);
+      
+      // If check-out is earlier than check-in, assume it's next day
+      if (checkOutTime.getTime() <= checkInTime.getTime()) {
+        checkOutTime = new Date(`2024-01-02 ${checkOut}`);
+      }
+      
+      const diffMs = checkOutTime.getTime() - checkInTime.getTime();
+      
+      // Ensure we don't show negative hours
+      if (diffMs < 0) {
+        return 'Invalid';
+      }
+      
+      const totalMinutes = Math.floor(diffMs / (1000 * 60));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      
+      return `${hours}h ${minutes}m`;
+    } catch (error) {
+      console.error('Error calculating working hours:', error);
+      return 'Invalid';
+    }
   };
 
   // Get status badge style
@@ -197,6 +215,21 @@ export default function Attendance() {
       toast({ title: 'Error', description: 'Please select an employee.', variant: 'destructive' });
       return;
     }
+
+    // Validate time entries if both check-in and check-out are provided
+    if (newAttendance.checkIn && newAttendance.checkOut) {
+      const checkInTime = new Date(`2024-01-01 ${newAttendance.checkIn}`);
+      const checkOutTime = new Date(`2024-01-01 ${newAttendance.checkOut}`);
+      
+      // Warn if check-out is earlier than check-in (might be next day)
+      if (checkOutTime.getTime() <= checkInTime.getTime()) {
+        const confirmed = window.confirm(
+          'Check-out time is earlier than check-in time. This will be treated as next-day checkout. Continue?'
+        );
+        if (!confirmed) return;
+      }
+    }
+
     const existing = attendanceRecords.find(r => r.employeeId === newAttendance.employeeId && r.date === selectedDate);
     const payload = {
       employeeId: newAttendance.employeeId,
@@ -290,24 +323,34 @@ export default function Attendance() {
                 </div>
 
                 {newAttendance.status !== 'Absent' && newAttendance.status !== 'Sick Leave' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Check In Time</Label>
-                      <Input
-                        type="time"
-                        value={newAttendance.checkIn}
-                        onChange={(e) => setNewAttendance({ ...newAttendance, checkIn: e.target.value })}
-                      />
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Check In Time</Label>
+                        <Input
+                          type="time"
+                          value={newAttendance.checkIn}
+                          onChange={(e) => setNewAttendance({ ...newAttendance, checkIn: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Check Out Time</Label>
+                        <Input
+                          type="time"
+                          value={newAttendance.checkOut}
+                          onChange={(e) => setNewAttendance({ ...newAttendance, checkOut: e.target.value })}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Check Out Time</Label>
-                      <Input
-                        type="time"
-                        value={newAttendance.checkOut}
-                        onChange={(e) => setNewAttendance({ ...newAttendance, checkOut: e.target.value })}
-                      />
-                    </div>
-                  </div>
+                    {newAttendance.checkIn && newAttendance.checkOut && (
+                      <div className="p-3 bg-muted rounded-md text-sm">
+                        <p className="font-medium">Working Hours: {calculateWorkingHours(newAttendance.checkIn, newAttendance.checkOut)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Note: If check-out is earlier than check-in, it will be treated as next-day checkout.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <DialogFooter>
@@ -478,14 +521,22 @@ export default function Attendance() {
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                       <TableCell>{record.checkIn || '-'}</TableCell>
                       <TableCell>{record.checkOut || '-'}</TableCell>
-                      <TableCell>{calculateWorkingHours(record.checkIn, record.checkOut)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{calculateWorkingHours(record.checkIn, record.checkOut)}</span>
+                          {record.checkIn && record.checkOut && calculateWorkingHours(record.checkIn, record.checkOut) === 'Invalid' && (
+                            <Badge variant="destructive" className="text-xs">Invalid Times</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-center">
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => {
-                              const employee = employees.find(emp => emp.id === record.employeeId);
+                              // Find employee by employeeId (EMP001, etc.) not by MongoDB id
+                              const employee = employees.find(emp => emp.employeeId === record.employeeId);
                               if (employee) {
                                 setNewAttendance({
                                   employeeId: record.employeeId,
@@ -494,6 +545,12 @@ export default function Attendance() {
                                   checkOut: record.checkOut,
                                 });
                                 setIsMarkAttendanceOpen(true);
+                              } else {
+                                toast({ 
+                                  title: 'Error', 
+                                  description: 'Employee not found for editing', 
+                                  variant: 'destructive' 
+                                });
                               }
                             }}
                           >

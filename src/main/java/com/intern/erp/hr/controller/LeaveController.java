@@ -2,6 +2,7 @@ package com.intern.erp.hr.controller;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ import com.intern.erp.hr.model.enums.LeaveStatus;
 import com.intern.erp.hr.model.enums.LeaveType;
 import com.intern.erp.hr.service.LeaveService;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/hr/leave-requests")
 @CrossOrigin(origins = "*")
@@ -112,17 +116,31 @@ public class LeaveController {
     }
     
     @PostMapping("/{id}/reject")
-    public ResponseEntity<LeaveRequest> rejectLeaveRequest(
+    public ResponseEntity<?> rejectLeaveRequest(
             @PathVariable String id, 
             @RequestParam String rejectedBy, 
             @RequestParam String reason) {
         try {
+            log.info("Rejecting leave request: {} by: {} with reason: {}", id, rejectedBy, reason);
             LeaveRequest rejectedLeave = leaveService.rejectLeaveRequest(id, rejectedBy, reason);
-            return ResponseEntity.ok(rejectedLeave);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Leave request rejected successfully",
+                "leaveRequest", rejectedLeave
+            ));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            log.error("Error rejecting leave request: {}", id, e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Unexpected error rejecting leave request: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Internal server error occurred"
+            ));
         }
     }
     
