@@ -47,6 +47,7 @@ const menuItems: MenuItem[] = [
   { id: 'finance-dashboard', title: 'Finance Dashboard', icon: LayoutDashboard, path: '/finance-dashboard', roles: ['finance', 'admin'] },
   { id: 'accounts', title: 'Accounts', icon: CreditCard, path: '/accounts', roles: ['finance', 'admin'] },
   { id: 'transactions', title: 'Transactions', icon: Receipt, path: '/transactions', roles: ['finance', 'admin'] },
+  { id: 'invoices', title: 'Invoices', icon: FileText, path: '/invoices', roles: ['finance', 'admin'] },
   { id: 'budgeting', title: 'Budgeting', icon: BarChart3, path: '/budgeting', roles: ['finance', 'admin'] },
   { id: 'reports', title: 'Reports', icon: FileText, path: '/reports', roles: ['finance', 'admin'] },
   
@@ -88,13 +89,13 @@ export function Sidebar() {
     if (userRole === 'admin') {
       return {
         'HR': filteredMenuItems.filter(item => ['hr-dashboard','employees','departments','positions','attendance','leaves','payroll'].includes(item.id)),
-        'Finance': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','budgeting','reports'].includes(item.id)),
+        'Finance': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','invoices','budgeting','reports'].includes(item.id)),
         'Admin': filteredMenuItems.filter(item => ['users','add-user'].includes(item.id))
       };
     } else if (userRole === 'hr') {
       return { 'HR Module': filteredMenuItems.filter(item => ['hr-dashboard','employees','departments','positions','attendance','leaves','payroll'].includes(item.id)) };
     } else if (userRole === 'finance') {
-      return { 'Finance Module': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','budgeting','reports'].includes(item.id)) };
+      return { 'Finance Module': filteredMenuItems.filter(item => ['finance-dashboard','accounts','transactions','invoices','budgeting','reports'].includes(item.id)) };
     }
     return {};
   };

@@ -26,6 +26,7 @@ import Positions from "./pages/hr/Positions";
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
 import Accounts from "./pages/finance/Accounts";
 import Transactions from "./pages/finance/Transactions";
+import Invoices from "./pages/finance/Invoices";
 import Budgeting from "./pages/finance/Budgeting";
 import Reports from "./pages/finance/Reports";
 
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="finance-dashboard" element={<ProtectedRoute allowedRoles={['finance','admin']}><FinanceDashboard /></ProtectedRoute>} />
               <Route path="accounts" element={<ProtectedRoute allowedRoles={['finance','admin']}><Accounts /></ProtectedRoute>} />
               <Route path="transactions" element={<ProtectedRoute allowedRoles={['finance','admin']}><Transactions /></ProtectedRoute>} />
+              <Route path="invoices" element={<ProtectedRoute allowedRoles={['finance','admin']}><Invoices /></ProtectedRoute>} />
               <Route path="budgeting" element={<ProtectedRoute allowedRoles={['finance','admin']}><Budgeting /></ProtectedRoute>} />
               <Route path="reports" element={<ProtectedRoute allowedRoles={['finance','admin']}><Reports /></ProtectedRoute>} />
 

@@ -1,0 +1,78 @@
+package com.intern.erp.finance.service;
+
+import com.intern.erp.finance.model.PayrollEntry;
+import com.intern.erp.finance.model.enums.PaymentStatus;
+import com.intern.erp.finance.repository.PayrollEntryRepository;
+import com.intern.erp.hr.model.Payslip;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class FinanceIntegrationService {
+    
+    private final PayrollEntryRepository payrollEntryRepository;
+    private final PayrollService payrollService;
+    
+    @Transactional
+    public String createPayrollJournalEntry(Payslip payslip) {
+        log.info("Creating finance payroll entry for payslip: {}", payslip.getId());
+        
+        // Create PayrollEntry from Payslip
+        PayrollEntry payrollEntry = new PayrollEntry();
+        payrollEntry.setEmployeeId(payslip.getEmployeeId()); // Use the MongoDB ObjectId as string
+        payrollEntry.setEmployeeCode(payslip.getEmployeeId()); // Also set as employee code
+        payrollEntry.setEmployeeName(payslip.getEmployeeName());
+        payrollEntry.setGrossSalary(payslip.getGrossSalary());
+        payrollEntry.setDeductions(payslip.getTotalDeductions());
+        payrollEntry.setNetSalary(payslip.getNetSalary());
+        payrollEntry.setPayDate(payslip.getPayDate());
+        payrollEntry.setStatus(PaymentStatus.PENDING);
+        
+        // Record payroll in finance system
+        PayrollEntry savedEntry = payrollService.recordPayroll(payrollEntry);
+        
+        // Post to ledger (creates journal entries)
+        payrollService.postPayrollToLedger(savedEntry.getId());
+        
+        log.info("Finance payroll entry created successfully: {}", savedEntry.getId());
+        return savedEntry.getId().toString();
+    }
+    
+    @Transactional
+    public void markPayslipAsPaid(String payslipId, String paidBy) {
+        log.info("Marking payslip as paid: {} by: {}", payslipId, paidBy);
+        
+        // Find the corresponding payroll entry
+        // This is a simplified approach - in a real system you might want to store the relationship
+        // For now, we'll update the HR payslip status through a service call
+        
+        try {
+            // This would typically be handled by an event or message queue in a microservices architecture
+            // For this monolithic approach, we'll use a direct service call
+            updateHRPayslipStatus(payslipId, paidBy);
+            log.info("Payslip marked as paid successfully: {}", payslipId);
+        } catch (Exception e) {
+            log.error("Failed to mark payslip as paid: {}", payslipId, e);
+            throw new RuntimeException("Failed to update payslip status", e);
+        }
+    }
+    
+    private void updateHRPayslipStatus(String payslipId, String paidBy) {
+        // This method would call the HR service to update the payslip status
+        // In a real implementation, this might be done through:
+        // 1. Direct service call (current approach)
+        // 2. Event publishing/subscribing
+        // 3. Message queue
+        // 4. Database triggers
+        
+        // For now, we'll implement this as a placeholder
+        log.info("Updating HR payslip status for payslip: {} by: {}", payslipId, paidBy);
+        
+        // The actual implementation would depend on your architecture choice
+        // Example: hrPayrollService.updatePayslipStatus(payslipId, PayslipStatus.PAID, paidBy);
+    }
+}

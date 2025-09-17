@@ -28,6 +28,7 @@ public class Employee {
     private String address;
     private LocalDate dateOfBirth;
     private LocalDate joinDate;
+    private LocalDate joiningDate; // Alternative field name for compatibility
     private LocalDate terminationDate;
     private String departmentId; // Reference to Department ID
     private String positionId; // Reference to Position ID

@@ -1,0 +1,185 @@
+package com.intern.erp.hr.controller;
+
+import com.intern.erp.hr.model.Payslip;
+import com.intern.erp.hr.model.enums.PayslipStatus;
+import com.intern.erp.hr.service.PayrollService;
+import com.intern.erp.integration.PayrollIntegrationService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/hr/payroll")
+@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
+@Slf4j
+public class HRPayrollController {
+    
+    private final PayrollService payrollService;
+    private final PayrollIntegrationService payrollIntegrationService;
+    
+    @PostMapping("/generate/{employeeId}")
+    public ResponseEntity<?> generatePayslip(
+            @PathVariable String employeeId,
+            @RequestParam(required = false) String payrollMonth) {
+        
+        try {
+            // Use current month if not provided
+            String month = payrollMonth != null ? payrollMonth : payrollService.getCurrentPayrollMonth();
+            
+            log.info("Generating payslip for employee: {} for month: {}", employeeId, month);
+            
+            Payslip payslip = payrollIntegrationService.generatePayslipWithFinanceEntry(employeeId, month);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Payslip generated successfully",
+                "payslip", payslip
+            ));
+            
+        } catch (RuntimeException e) {
+            log.error("Error generating payslip for employee: {}", employeeId, e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Unexpected error generating payslip for employee: {}", employeeId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Internal server error occurred"
+            ));
+        }
+    }
+    
+    @PostMapping("/generate-bulk")
+    public ResponseEntity<?> generateBulkPayslips(
+            @RequestBody List<String> employeeIds,
+            @RequestParam(required = false) String payrollMonth) {
+        
+        try {
+            String month = payrollMonth != null ? payrollMonth : payrollService.getCurrentPayrollMonth();
+            
+            log.info("Generating bulk payslips for {} employees for month: {}", employeeIds.size(), month);
+            
+            List<Payslip> payslips = employeeIds.stream()
+                .map(employeeId -> {
+                    try {
+                        return payrollIntegrationService.generatePayslipWithFinanceEntry(employeeId, month);
+                    } catch (Exception e) {
+                        log.error("Failed to generate payslip for employee: {}", employeeId, e);
+                        return null;
+                    }
+                })
+                .filter(payslip -> payslip != null)
+                .toList();
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Bulk payslips generated successfully",
+                "generated", payslips.size(),
+                "total", employeeIds.size(),
+                "payslips", payslips
+            ));
+            
+        } catch (Exception e) {
+            log.error("Error generating bulk payslips", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Internal server error occurred"
+            ));
+        }
+    }
+    
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<List<Payslip>> getEmployeePayslips(@PathVariable String employeeId) {
+        try {
+            List<Payslip> payslips = payrollService.getPayslipsByEmployee(employeeId);
+            return ResponseEntity.ok(payslips);
+        } catch (Exception e) {
+            log.error("Error fetching payslips for employee: {}", employeeId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/month/{payrollMonth}")
+    public ResponseEntity<List<Payslip>> getMonthlyPayslips(@PathVariable String payrollMonth) {
+        try {
+            List<Payslip> payslips = payrollService.getPayslipsByMonth(payrollMonth);
+            return ResponseEntity.ok(payslips);
+        } catch (Exception e) {
+            log.error("Error fetching payslips for month: {}", payrollMonth, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<Payslip>> getPayslipsByStatus(@PathVariable PayslipStatus status) {
+        try {
+            List<Payslip> payslips = payrollService.getPayslipsByStatus(status);
+            return ResponseEntity.ok(payslips);
+        } catch (Exception e) {
+            log.error("Error fetching payslips by status: {}", status, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<Payslip>> getAllPayslips() {
+        try {
+            List<Payslip> payslips = payrollService.getPayslipsByStatus(null); // Get all payslips
+            return ResponseEntity.ok(payslips);
+        } catch (Exception e) {
+            log.error("Error fetching all payslips", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GetMapping("/{payslipId}")
+    public ResponseEntity<Payslip> getPayslip(@PathVariable String payslipId) {
+        try {
+            return payrollService.getPayslipById(payslipId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            log.error("Error fetching payslip: {}", payslipId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @PutMapping("/{payslipId}/status")
+    public ResponseEntity<?> updatePayslipStatus(
+            @PathVariable String payslipId,
+            @RequestParam PayslipStatus status,
+            @RequestParam(required = false) String updatedBy) {
+        
+        try {
+            String user = updatedBy != null ? updatedBy : "SYSTEM";
+            Payslip updatedPayslip = payrollService.updatePayslipStatus(payslipId, status, user);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Payslip status updated successfully",
+                "payslip", updatedPayslip
+            ));
+            
+        } catch (RuntimeException e) {
+            log.error("Error updating payslip status: {}", payslipId, e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Unexpected error updating payslip status: {}", payslipId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "Internal server error occurred"
+            ));
+        }
+    }
+}

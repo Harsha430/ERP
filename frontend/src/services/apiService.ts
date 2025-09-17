@@ -12,22 +12,54 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit & { suppres
       ...fetchOptions,
     };
     const response = await fetch(url, config);
+    
     if (!response.ok) {
-      const error = new Error(`HTTP error! status: ${response.status}`);
+      // Try to get error message from response body
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // If we can't parse JSON, use the status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      
+      const error = new Error(errorMessage);
+      
       // Don't log 404 errors if suppressNotFoundError is true, but still throw them
       if (response.status === 404 && suppressNotFoundError) {
-        // Silently throw the error without logging
         throw error;
       }
+      
       // Log and throw for all other errors
       console.error(`API request failed for ${endpoint}:`, error);
       throw error;
     }
+    
     if (response.status === 204) return undefined as unknown as T;
+    
     const ct = response.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
-      try { return await response.json() as T; } catch { const txt = await response.text(); return txt as unknown as T; }
+      try { 
+        const data = await response.json() as T;
+        
+        // Don't automatically throw errors for success: false responses
+        // Let the calling code handle the response structure
+        
+        return data;
+      } catch (parseError) { 
+        // If it's already an Error we threw, re-throw it
+        if (parseError instanceof Error && parseError.message !== 'Unexpected end of JSON input') {
+          throw parseError;
+        }
+        // Otherwise, try to get text
+        const txt = await response.text(); 
+        return txt as unknown as T; 
+      }
     }
+    
     const txt = await response.text();
     return txt as unknown as T;
   } catch (e) {
@@ -104,6 +136,28 @@ export const hrService = {
   // Leave Balances
   getLeaveBalances: () => apiRequest<any[]>('/hr/leave-balances/raw'), // Use raw endpoint to get individual balance records
   getLeaveBalanceByEmployee: (employeeId: string) => apiRequest<any>(`/hr/leave-balances/employee/${employeeId}`),
+
+  // Payroll APIs
+  generatePayslip: (employeeId: string, payrollMonth?: string) => {
+    const params = payrollMonth ? `?payrollMonth=${payrollMonth}` : '';
+    return apiRequest<any>(`/hr/payroll/generate/${employeeId}${params}`, { method: 'POST' });
+  },
+  generateBulkPayslips: (employeeIds: string[], payrollMonth?: string) => {
+    const params = payrollMonth ? `?payrollMonth=${payrollMonth}` : '';
+    return apiRequest<any>(`/hr/payroll/generate-bulk${params}`, { 
+      method: 'POST', 
+      body: JSON.stringify(employeeIds) 
+    });
+  },
+  getPayslips: () => apiRequest<any[]>('/hr/payroll'),
+  getPayslipsByEmployee: (employeeId: string) => apiRequest<any[]>(`/hr/payroll/employee/${employeeId}`),
+  getPayslipsByMonth: (payrollMonth: string) => apiRequest<any[]>(`/hr/payroll/month/${payrollMonth}`),
+  getPayslipsByStatus: (status: string) => apiRequest<any[]>(`/hr/payroll/status/${status}`),
+  getPayslipById: (payslipId: string) => apiRequest<any>(`/hr/payroll/${payslipId}`),
+  updatePayslipStatus: (payslipId: string, status: string, updatedBy?: string) => {
+    const params = updatedBy ? `?updatedBy=${updatedBy}` : '';
+    return apiRequest<any>(`/hr/payroll/${payslipId}/status?status=${status}${params}`, { method: 'PUT' });
+  },
 };
 
 export const financeService = {
@@ -137,6 +191,12 @@ export const financeService = {
   getPayrollEntries: () => apiRequest<any[]>('/payroll'),
   getPayrollByEmployee: (employeeId: string) => apiRequest<any[]>(`/payroll/employee/${employeeId}`),
   createPayrollEntry: (payroll: any) => apiRequest<any>('/payroll', { method: 'POST', body: JSON.stringify(payroll) }),
+  postPayrollToLedger: (payrollId: string) => apiRequest<any>(`/payroll/${payrollId}/post-to-ledger`, { method: 'POST' }),
+  markPayrollAsPaid: (payrollId: string) => apiRequest<any>(`/payroll/${payrollId}/mark-paid`, { method: 'PUT' }),
+  markPayslipAsPaid: (payslipId: string, paidBy?: string) => {
+    const params = paidBy ? `?paidBy=${paidBy}` : '';
+    return apiRequest<any>(`/payroll/pay/${payslipId}${params}`, { method: 'POST' });
+  },
 
   // Report APIs
   getFinancialSummary: () => apiRequest<any>('/reports/financial-summary'),

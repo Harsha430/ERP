@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Banknote, Download, Receipt, Plus, RefreshCw, Search, Filter, Calendar, Users, TrendingUp, DollarSign, IndianRupee } from 'lucide-react';
+import { Banknote, Download, Receipt, Plus, RefreshCw, Search, Filter, Calendar, Users, TrendingUp, DollarSign, IndianRupee, CheckCircle } from 'lucide-react';
 import { financeService, hrService, formatCurrency } from '@/services/apiService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,7 @@ export default function Payroll() {
     employeeName: '', 
     grossSalary: '', 
     payDate: new Date().toISOString().split('T')[0],
-    status: 'PAID'
+    status: 'GENERATED'
   });
 
   const employeesQuery = useQuery({ 
@@ -38,42 +38,57 @@ export default function Payroll() {
   });
   
   const payrollQuery = useQuery({ 
-    queryKey: ['payroll'], 
-    queryFn: () => financeService.getPayrollEntries() 
+    queryKey: ['hr-payslips'], 
+    queryFn: () => hrService.getPayslips() 
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: any) => financeService.createPayrollEntry({
-      employeeId: Number(payload.employeeId),
-      employeeName: payload.employeeName,
-      grossSalary: Number(payload.grossSalary),
-      payDate: payload.payDate,
-      status: payload.status
-    }),
+    mutationFn: async (payload: any) => {
+      const emp = (employeesQuery.data || []).find((e: any) => e.id == payload.employeeId);
+      const employeeId = emp ? emp.employeeId : payload.employeeId;
+      return await hrService.generatePayslip(employeeId, payload.payrollMonth);
+    },
     onMutate: async (payload: any) => {
-      await qc.cancelQueries({ queryKey: ['payroll'] });
-      const prev = qc.getQueryData<any[]>(['payroll']);
+      await qc.cancelQueries({ queryKey: ['hr-payslips'] });
+      const prev = qc.getQueryData<any[]>(['hr-payslips']);
+      const emp = (employeesQuery.data || []).find((e: any) => e.id == payload.employeeId);
       const optimistic = {
-        id: Date.now(),
-        employeeId: Number(payload.employeeId),
+        id: 'temp-' + Date.now(),
+        employeeId: emp ? emp.employeeId : payload.employeeId,
         employeeName: payload.employeeName,
         grossSalary: Number(payload.grossSalary),
-        deductions: Number(payload.grossSalary) * 0.22,
+        totalDeductions: Number(payload.grossSalary) * 0.22,
         netSalary: Number(payload.grossSalary) * 0.78,
         payDate: payload.payDate,
-        status: payload.status
+        status: 'GENERATED',
+        payrollMonth: payload.payrollMonth
       };
-      qc.setQueryData<any[]>(['payroll'], (old = []) => [optimistic, ...old]);
+      qc.setQueryData<any[]>(['hr-payslips'], (old = []) => [optimistic, ...old]);
       return { prev };
     },
-    onError: (_e, _v, ctx: any) => { 
-      if (ctx?.prev) qc.setQueryData(['payroll'], ctx.prev); 
-      toast({ title: 'Failed', description: 'Could not create payroll entry', variant: 'destructive' }); 
+    onError: (error: any, _v, ctx: any) => { 
+      if (ctx?.prev) qc.setQueryData(['hr-payslips'], ctx.prev); 
+      toast({ 
+        title: 'Failed', 
+        description: error.message || 'Could not generate payslip', 
+        variant: 'destructive' 
+      }); 
     },
-    onSuccess: () => { 
-      toast({ title: 'Success', description: 'Payroll entry created successfully' }); 
+    onSuccess: (data: any) => {
+      // Check if the response indicates failure
+      if (data && typeof data === 'object' && data.success === false) {
+        toast({ 
+          title: 'Failed', 
+          description: data.message || 'Could not generate payslip', 
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      const message = data?.message || 'Payslip generated successfully';
+      toast({ title: 'Success', description: message }); 
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['payroll'] })
+    onSettled: () => qc.invalidateQueries({ queryKey: ['hr-payslips'] })
   });
 
   // Computed statistics
@@ -81,10 +96,10 @@ export default function Payroll() {
     const payroll = payrollQuery.data || [];
     const totalGross = payroll.reduce((sum: number, p: any) => sum + Number(p.grossSalary || 0), 0);
     const totalNet = payroll.reduce((sum: number, p: any) => sum + Number(p.netSalary || 0), 0);
-    const totalDeductions = payroll.reduce((sum: number, p: any) => sum + Number(p.deductions || 0), 0);
+    const totalDeductions = payroll.reduce((sum: number, p: any) => sum + Number(p.totalDeductions || 0), 0);
     const avgSalary = payroll.length > 0 ? totalGross / payroll.length : 0;
     const paidCount = payroll.filter((p: any) => p.status === 'PAID').length;
-    const pendingCount = payroll.filter((p: any) => p.status === 'PENDING').length;
+    const generatedCount = payroll.filter((p: any) => p.status === 'GENERATED').length;
 
     return {
       totalGross,
@@ -93,7 +108,7 @@ export default function Payroll() {
       avgSalary,
       totalEntries: payroll.length,
       paidCount,
-      pendingCount
+      generatedCount
     };
   }, [payrollQuery.data]);
 
@@ -104,22 +119,24 @@ export default function Payroll() {
       const matchesSearch = !searchTerm || 
         p.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.employeeId?.toString().includes(searchTerm) ||
-        p.employeeCode?.toLowerCase().includes(searchTerm.toLowerCase());
+        p.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-      const matchesMonth = monthFilter === 'all' || p.payDate?.startsWith(monthFilter);
+      const matchesMonth = monthFilter === 'all' || p.payrollMonth?.startsWith(monthFilter);
       return matchesSearch && matchesStatus && matchesMonth;
     });
   }, [payrollQuery.data, searchTerm, statusFilter, monthFilter]);
 
   const submit = () => {
-    if (!form.employeeId || !form.grossSalary) { 
-      toast({ title: 'Validation Error', description: 'Employee and gross salary are required', variant: 'destructive' }); 
+    if (!form.employeeId) { 
+      toast({ title: 'Validation Error', description: 'Employee is required', variant: 'destructive' }); 
       return; 
     }
     const emp = (employeesQuery.data || []).find((e: any) => e.id == form.employeeId);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     createMutation.mutate({ 
       ...form, 
-      employeeName: emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : form.employeeName 
+      employeeName: emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : form.employeeName,
+      payrollMonth: currentMonth
     });
     setOpen(false);
     setForm({ 
@@ -127,31 +144,58 @@ export default function Payroll() {
       employeeName: '', 
       grossSalary: '', 
       payDate: new Date().toISOString().split('T')[0],
-      status: 'PAID'
+      status: 'GENERATED'
     });
   };
 
   const exportPayroll = () => {
     const exportData = filteredPayroll.map((p: any) => ({
-      'Employee ID': p.employeeCode || (() => {
-        const emp = (employeesQuery.data || []).find((e: any) => e.id == p.employeeId);
-        return emp ? emp.employeeId : p.employeeId;
-      })(),
+      'Employee ID': p.employeeId,
       'Employee Name': p.employeeName || '—',
+      'Payroll Month': p.payrollMonth,
       'Gross Salary': p.grossSalary,
-      'Deductions': p.deductions,
+      'Deductions': p.totalDeductions,
       'Net Salary': p.netSalary,
       'Pay Date': p.payDate,
       'Status': p.status
     }));
-    exportToCSV('payroll-export.csv', exportData);
-    toast({ title: 'Export Successful', description: 'Payroll data exported to CSV' });
+    exportToCSV('payslips-export.csv', exportData);
+    toast({ title: 'Export Successful', description: 'Payslip data exported to CSV' });
   };
 
-  const openPayslip = (payrollEntry: any) => {
-    setSelectedPayslip(payrollEntry);
+  const openPayslip = (payslip: any) => {
+    setSelectedPayslip(payslip);
     setPayslipDialogOpen(true);
   };
+
+  const markPayslipAsPaid = useMutation({
+    mutationFn: async (payslipId: string) => {
+      return await financeService.markPayslipAsPaid(payslipId, 'HR_USER');
+    },
+    onSuccess: (data: any) => {
+      // Check if the response indicates failure
+      if (data && typeof data === 'object' && data.success === false) {
+        toast({ 
+          title: 'Failed', 
+          description: data.message || 'Could not mark payslip as paid', 
+          variant: 'destructive' 
+        });
+        return;
+      }
+      
+      const message = data?.message || 'Payslip marked as paid and transaction created';
+      toast({ title: 'Success', description: message });
+      qc.invalidateQueries({ queryKey: ['hr-payslips'] });
+      setPayslipDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Failed', 
+        description: error.message || 'Could not mark payslip as paid', 
+        variant: 'destructive' 
+      });
+    }
+  });
 
   const downloadPayslip = () => {
     if (!selectedPayslip) return;
@@ -179,10 +223,7 @@ export default function Payroll() {
           
           <div class="section">
               <h3>Employee Details</h3>
-              <div class="row"><span>Employee ID:</span><span>${selectedPayslip.employeeCode || (() => {
-                const emp = (employeesQuery.data || []).find((e: any) => e.id == selectedPayslip.employeeId);
-                return emp ? emp.employeeId : selectedPayslip.employeeId;
-              })()}</span></div>
+              <div class="row"><span>Employee ID:</span><span>${selectedPayslip.employeeId}</span></div>
               <div class="row"><span>Employee Name:</span><span>${selectedPayslip.employeeName}</span></div>
               <div class="row"><span>Pay Date:</span><span>${selectedPayslip.payDate}</span></div>
           </div>
@@ -195,8 +236,8 @@ export default function Payroll() {
           
           <div class="section">
               <h3>Deductions</h3>
-              <div class="row"><span>Tax & Other Deductions:</span><span>${formatCurrency(Number(selectedPayslip.deductions || 0))}</span></div>
-              <div class="row total"><span>Total Deductions:</span><span>${formatCurrency(Number(selectedPayslip.deductions || 0))}</span></div>
+              <div class="row"><span>Tax & Other Deductions:</span><span>${formatCurrency(Number(selectedPayslip.totalDeductions || 0))}</span></div>
+              <div class="row total"><span>Total Deductions:</span><span>${formatCurrency(Number(selectedPayslip.totalDeductions || 0))}</span></div>
           </div>
           
           <div class="section total">
@@ -210,10 +251,7 @@ export default function Payroll() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `payslip-${selectedPayslip.employeeCode || (() => {
-      const emp = (employeesQuery.data || []).find((e: any) => e.id == selectedPayslip.employeeId);
-      return emp ? emp.employeeId : selectedPayslip.employeeId;
-    })()}-${selectedPayslip.payDate}.html`;
+    a.download = `payslip-${selectedPayslip.employeeId}-${selectedPayslip.payDate}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -243,7 +281,7 @@ export default function Payroll() {
                 // Add minimum delay to show animation
                 const [refreshResult] = await Promise.all([
                   Promise.all([
-                    qc.refetchQueries({ queryKey: ['payroll'] }),
+                    qc.refetchQueries({ queryKey: ['hr-payslips'] }),
                     qc.refetchQueries({ queryKey: ['employees-basic'] })
                   ]),
                   new Promise(resolve => setTimeout(resolve, 1500)) // Minimum 1.5 second delay to see animation
@@ -261,10 +299,10 @@ export default function Payroll() {
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className='bg-gradient-primary hover:opacity-90'><Plus className='h-4 w-4 mr-2'/>Add Entry</Button>
+              <Button className='bg-gradient-primary hover:opacity-90'><Plus className='h-4 w-4 mr-2'/>Generate Payslip</Button>
             </DialogTrigger>
             <DialogContent className='sm:max-w-[520px]'>
-              <DialogHeader><DialogTitle>New Payroll Entry</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Generate New Payslip</DialogTitle></DialogHeader>
               <div className='space-y-4 py-2'>
                 <div className='space-y-1'>
                   <Label>Employee *</Label>
@@ -279,40 +317,19 @@ export default function Payroll() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='grid grid-cols-2 gap-4'>
-                  <div className='space-y-1'>
-                    <Label>Gross Salary (INR) *</Label>
-                    <Input 
-                      type='number' 
-                      value={form.grossSalary} 
-                      onChange={e => setForm(f => ({ ...f, grossSalary: e.target.value }))} 
-                    />
-                  </div>
-                  <div className='space-y-1'>
-                    <Label>Pay Date</Label>
-                    <Input 
-                      type='date' 
-                      value={form.payDate} 
-                      onChange={e => setForm(f => ({ ...f, payDate: e.target.value }))} 
-                    />
-                  </div>
-                </div>
                 <div className='space-y-1'>
-                  <Label>Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PAID">PAID</SelectItem>
-                      <SelectItem value="PENDING">PENDING</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Pay Date</Label>
+                  <Input 
+                    type='date' 
+                    value={form.payDate} 
+                    onChange={e => setForm(f => ({ ...f, payDate: e.target.value }))} 
+                  />
                 </div>
-                {form.grossSalary && (
-                  <div className='p-3 bg-muted rounded-md text-xs space-y-1'>
-                    <p>Estimated Deductions (22%): {formatCurrency(Number(form.grossSalary) * 0.22)}</p>
-                    <p>Estimated Net: {formatCurrency(Number(form.grossSalary) * 0.78)}</p>
-                  </div>
-                )}
+                <div className='p-3 bg-muted rounded-md text-sm space-y-1'>
+                  <p className="font-medium">Note:</p>
+                  <p>Payslip will be generated based on employee's salary structure and attendance records.</p>
+                  <p>Deductions and allowances will be calculated automatically.</p>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant='outline' onClick={() => setOpen(false)}>Cancel</Button>
@@ -385,7 +402,7 @@ export default function Payroll() {
                   <p className="text-sm font-medium text-muted-foreground">Total Entries</p>
                   <p className="text-2xl font-bold text-orange-600">{payrollStats.totalEntries}</p>
                   <p className="text-xs text-muted-foreground">
-                    {payrollStats.paidCount} paid, {payrollStats.pendingCount} pending
+                    {payrollStats.paidCount} paid, {payrollStats.generatedCount} generated
                   </p>
                 </div>
                 <IndianRupee className="h-8 w-8 text-red-500" />
@@ -426,8 +443,8 @@ export default function Payroll() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="GENERATED">GENERATED</SelectItem>
                     <SelectItem value="PAID">PAID</SelectItem>
-                    <SelectItem value="PENDING">PENDING</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -498,24 +515,21 @@ export default function Payroll() {
                     className="hover:bg-secondary"
                   >
                     <TableCell className="font-medium">
-                      {record.employeeCode || (() => {
-                        const emp = (employeesQuery.data || []).find((e: any) => e.id == record.employeeId);
-                        return emp ? emp.employeeId : record.employeeId;
-                      })()}
+                      {record.employeeId}
                     </TableCell>
                     <TableCell>{record.employeeName || '—'}</TableCell>
                     <TableCell>{formatCurrency(Number(record.grossSalary || 0))}</TableCell>
-                    <TableCell className="text-red-600">-{formatCurrency(Number(record.deductions || 0))}</TableCell>
+                    <TableCell className="text-red-600">-{formatCurrency(Number(record.totalDeductions || 0))}</TableCell>
                     <TableCell className="font-bold text-green-600">{formatCurrency(Number(record.netSalary || 0))}</TableCell>
                     <TableCell>{record.payDate}</TableCell>
                     <TableCell>
-                      <Badge variant={record.status === 'PAID' ? 'default' : 'destructive'}>
-                        {record.status || 'PAID'}
+                      <Badge variant={record.status === 'PAID' ? 'default' : record.status === 'GENERATED' ? 'secondary' : 'destructive'}>
+                        {record.status || 'GENERATED'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" onClick={() => openPayslip(record)}>
-                        <IndianRupee className="h-8 w-8 text-purple-500" />
+                        <Receipt className="h-4 w-4 mr-1" />
                         Payslip
                       </Button>
                     </TableCell>
@@ -557,10 +571,7 @@ export default function Payroll() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Employee ID:</span>
-                      <span>{selectedPayslip.employeeCode || (() => {
-                        const emp = (employeesQuery.data || []).find((e: any) => e.id == selectedPayslip.employeeId);
-                        return emp ? emp.employeeId : selectedPayslip.employeeId;
-                      })()}</span>
+                      <span>{selectedPayslip.employeeId}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Employee Name:</span>
@@ -588,7 +599,7 @@ export default function Payroll() {
                     </div>
                     <div className="flex justify-between text-red-600">
                       <span>Deductions:</span>
-                      <span>-{formatCurrency(Number(selectedPayslip.deductions || 0))}</span>
+                      <span>-{formatCurrency(Number(selectedPayslip.totalDeductions || 0))}</span>
                     </div>
                     <hr />
                     <div className="flex justify-between font-semibold text-green-600 text-lg">
@@ -603,6 +614,25 @@ export default function Payroll() {
                 <Button variant="outline" onClick={() => setPayslipDialogOpen(false)}>
                   Close
                 </Button>
+                {selectedPayslip.status !== 'PAID' && (
+                  <Button 
+                    onClick={() => markPayslipAsPaid.mutate(selectedPayslip.id)}
+                    disabled={markPayslipAsPaid.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {markPayslipAsPaid.isPending ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark as Paid
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button onClick={downloadPayslip}>
                   <Download className="h-4 w-4 mr-2" />
                   Download

@@ -7,19 +7,20 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
-@Document
+@Document(collection = "payroll_ledger_entries")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class LedgerEntry {
+public class PayrollLedgerEntry {
 
     @Id
     private Long id;
-    private BigDecimal amount;
-    private Account debitAccount;
-    private Account creditAccount;
-    private LocalDateTime transactionDate;
-    private String referenceId;    // Link back to Payroll, Invoice, Expense
+    private Long accountId;
+    private LocalDate entryDate;
+    private String narration;
+    private BigDecimal debitAmount;
+    private BigDecimal creditAmount;
+    private Long journalEntryId;
 }

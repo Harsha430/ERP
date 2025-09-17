@@ -5,5 +5,6 @@ public enum ExpenseCategory {
     UTILITIES,
     TRAVEL,
     VENDOR,
+    SALARY,
     OTHER
 }
