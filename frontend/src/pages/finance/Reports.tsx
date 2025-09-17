@@ -270,7 +270,21 @@ export default function Reports() {
           <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Total Expenses</p><p className='text-2xl font-bold'>{formatCurrency(totalExpenses)}</p></div><div className='p-3 rounded-full bg-gradient-to-r from-red-500 to-rose-600'><BarChart3 className='h-6 w-6 text-white'/></div></div></CardContent></Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Net</p><p className={`text-2xl font-bold ${net>=0?'text-green-600':'text-red-600'}`}>{net>=0?'+':''}{formatCurrency(net)}</p></div><div className={`p-3 rounded-full ${net>=0?'bg-gradient-to-r from-green-500 to-emerald-600':'bg-gradient-to-r from-red-500 to-rose-600'}`}><TrendingUp className='h-6 w-6 text-white'/></div></div></CardContent></Card>
+          <Card className="stat-card">
+            <CardContent className="p-6">
+              <div className='flex items-center justify-between'>
+                <div className='flex-1 pr-2'>
+                  <p className='text-sm font-medium text-muted-foreground'>Net Profit/Loss</p>
+                  <p className={`text-lg font-bold whitespace-nowrap ${net>=0?'text-green-600':'text-red-600'}`}>
+                    {net>=0?'+':''}{formatCurrency(net)}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full flex-shrink-0 ${net>=0?'bg-gradient-to-r from-green-500 to-emerald-600':'bg-gradient-to-r from-red-500 to-rose-600'}`}>
+                  <TrendingUp className='h-6 w-6 text-white'/>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card className="stat-card"><CardContent className="p-6"><div className='flex items-center justify-between'><div><p className='text-sm font-medium text-muted-foreground'>Paid Invoices</p><p className='text-2xl font-bold'>{summaryQuery.data?.paidInvoices ?? 0}</p></div><div className='p-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600'><Calendar className='h-6 w-6 text-white'/></div></div></CardContent></Card>

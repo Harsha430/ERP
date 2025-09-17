@@ -1,5 +1,20 @@
 package com.intern.erp.finance.controller;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.intern.erp.finance.model.Expense;
 import com.intern.erp.finance.model.Invoice;
 import com.intern.erp.finance.model.PayrollEntry;
@@ -9,18 +24,9 @@ import com.intern.erp.finance.repository.ExpenseRepository;
 import com.intern.erp.finance.repository.InvoiceRepository;
 import com.intern.erp.finance.repository.PayrollEntryRepository;
 import com.intern.erp.finance.service.ReportService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -44,18 +50,31 @@ public class ReportController {
             List<Expense> allExpenses = expenseRepository.findAll();
             List<PayrollEntry> allPayroll = payrollEntryRepository.findAll();
             
-            // Calculate totals
+            // Calculate totals - include all records regardless of payment status for better visibility
             BigDecimal totalRevenue = allInvoices.stream()
-                .filter(inv -> inv.getStatus() == PaymentStatus.PAID)
                 .map(Invoice::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
             BigDecimal totalExpenses = allExpenses.stream()
-                .filter(exp -> exp.getStatus() == PaymentStatus.PAID)
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
                 
             BigDecimal totalPayroll = allPayroll.stream()
+                .map(PayrollEntry::getNetSalary)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+            // Also calculate paid amounts separately
+            BigDecimal paidRevenue = allInvoices.stream()
+                .filter(inv -> inv.getStatus() == PaymentStatus.PAID)
+                .map(Invoice::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+            BigDecimal paidExpenses = allExpenses.stream()
+                .filter(exp -> exp.getStatus() == PaymentStatus.PAID)
+                .map(Expense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+            BigDecimal paidPayroll = allPayroll.stream()
                 .filter(pay -> pay.getStatus() == PaymentStatus.PAID)
                 .map(PayrollEntry::getNetSalary)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -69,12 +88,18 @@ public class ReportController {
                 
             Map<String, Object> summary = new HashMap<>();
             summary.put("totalRevenue", totalRevenue);
-            summary.put("totalExpenses", totalExpenses);
-            summary.put("netProfit", totalRevenue.subtract(totalExpenses));
+            summary.put("totalExpenses", totalExpenses.add(totalPayroll));
+            summary.put("netProfit", totalRevenue.subtract(totalExpenses.add(totalPayroll)));
             summary.put("paidInvoices", paidInvoices);
             summary.put("totalInvoices", allInvoices.size());
             summary.put("totalExpenseEntries", allExpenses.size());
             summary.put("totalPayrollEntries", allPayroll.size());
+            
+            // Add debugging information
+            summary.put("paidRevenue", paidRevenue);
+            summary.put("paidExpenses", paidExpenses);
+            summary.put("paidPayroll", paidPayroll);
+            summary.put("pendingInvoices", allInvoices.size() - paidInvoices);
             
             return ResponseEntity.ok(summary);
             
@@ -112,9 +137,8 @@ public class ReportController {
                     .collect(Collectors.toList());
             }
             
-            // Convert to report format
+            // Convert to report format - show all invoices regardless of payment status
             List<Map<String, Object>> revenueData = invoices.stream()
-                .filter(inv -> inv.getStatus() == PaymentStatus.PAID)
                 .map(inv -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("amount", inv.getAmount());
@@ -172,9 +196,8 @@ public class ReportController {
                     .collect(Collectors.toList());
             }
             
-            // Convert expenses to report format
+            // Convert expenses to report format - show all expenses regardless of payment status
             List<Map<String, Object>> expenseData = expenses.stream()
-                .filter(exp -> exp.getStatus() == PaymentStatus.PAID)
                 .map(exp -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("amount", exp.getAmount());
@@ -185,9 +208,8 @@ public class ReportController {
                 })
                 .collect(Collectors.toList());
                 
-            // Add payroll entries as expenses
+            // Add payroll entries as expenses - show all regardless of payment status
             List<Map<String, Object>> payrollData = payrollEntries.stream()
-                .filter(pay -> pay.getStatus() == PaymentStatus.PAID)
                 .map(pay -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("amount", pay.getNetSalary());
@@ -210,47 +232,64 @@ public class ReportController {
     }
     
     @GetMapping("/balance-sheet")
-    public ResponseEntity<ReportDTO.BalanceSheetDTO> getBalanceSheet(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    public ResponseEntity<?> getBalanceSheet(
+            @RequestParam String from,
+            @RequestParam String to) {
         
         try {
             log.info("Generating balance sheet from {} to {}", from, to);
-            ReportDTO.BalanceSheetDTO balanceSheet = reportService.generateBalanceSheet(from, to);
+            LocalDate fromDate = LocalDate.parse(from);
+            LocalDate toDate = LocalDate.parse(to);
+            ReportDTO.BalanceSheetDTO balanceSheet = reportService.generateBalanceSheet(fromDate, toDate);
             return ResponseEntity.ok(balanceSheet);
         } catch (Exception e) {
-            log.error("Error generating balance sheet", e);
-            return ResponseEntity.badRequest().build();
+            log.error("Error generating balance sheet from {} to {}: {}", from, to, e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", "Failed to generate balance sheet", "message", e.getMessage()));
         }
     }
     
     @GetMapping("/profit-loss")
-    public ResponseEntity<ReportDTO.ProfitAndLossDTO> getProfitAndLoss(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    public ResponseEntity<?> getProfitAndLoss(
+            @RequestParam String from,
+            @RequestParam String to) {
         
         try {
             log.info("Generating profit & loss from {} to {}", from, to);
-            ReportDTO.ProfitAndLossDTO profitLoss = reportService.generateProfitAndLoss(from, to);
+            LocalDate fromDate = LocalDate.parse(from);
+            LocalDate toDate = LocalDate.parse(to);
+            ReportDTO.ProfitAndLossDTO profitLoss = reportService.generateProfitAndLoss(fromDate, toDate);
             return ResponseEntity.ok(profitLoss);
         } catch (Exception e) {
-            log.error("Error generating profit & loss", e);
-            return ResponseEntity.badRequest().build();
+            log.error("Error generating profit & loss from {} to {}: {}", from, to, e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", "Failed to generate profit & loss", "message", e.getMessage()));
         }
     }
     
     @GetMapping("/cash-flow")
-    public ResponseEntity<ReportDTO.CashFlowDTO> getCashFlow(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    public ResponseEntity<?> getCashFlow(
+            @RequestParam String from,
+            @RequestParam String to) {
         
         try {
             log.info("Generating cash flow from {} to {}", from, to);
-            ReportDTO.CashFlowDTO cashFlow = reportService.generateCashFlow(from, to);
+            LocalDate fromDate = LocalDate.parse(from);
+            LocalDate toDate = LocalDate.parse(to);
+            ReportDTO.CashFlowDTO cashFlow = reportService.generateCashFlow(fromDate, toDate);
             return ResponseEntity.ok(cashFlow);
         } catch (Exception e) {
-            log.error("Error generating cash flow", e);
-            return ResponseEntity.badRequest().build();
+            log.error("Error generating cash flow from {} to {}: {}", from, to, e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", "Failed to generate cash flow", "message", e.getMessage()));
         }
+    }
+    
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, String>> testReports() {
+        return ResponseEntity.ok(Map.of(
+            "status", "Reports API is working",
+            "timestamp", LocalDate.now().toString()
+        ));
     }
 }
