@@ -1,19 +1,29 @@
 package com.intern.erp.auth;
 
-import com.intern.erp.security.CustomUserDetails;
-import com.intern.erp.users.model.UserAccount;
-import com.intern.erp.users.repository.UserAccountRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import com.intern.erp.security.CustomUserDetails;
+import com.intern.erp.users.model.UserAccount;
+import com.intern.erp.users.repository.UserAccountRepository;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 @RestController
 @RequestMapping("/auth")
@@ -91,10 +101,10 @@ public class AuthController {
         return Map.of("success", true);
     }
 
-    private Set<String> toRoleNames(Set<? extends Enum<?>> roles) {
+    private Set<String> toRoleNames(List<String> roles) {
         if (roles == null) return Set.of();
         Set<String> out = new HashSet<>();
-        for (Enum<?> r : roles) out.add("ROLE_" + r.name());
+        for (String r : roles) out.add("ROLE_" + r);
         return out;
     }
 }

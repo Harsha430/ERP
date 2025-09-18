@@ -8,7 +8,6 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -46,7 +45,6 @@ import com.intern.erp.hr.repository.LeaveBalanceRepository;
 import com.intern.erp.hr.repository.LeaveRequestRepository;
 import com.intern.erp.hr.repository.PositionRepository;
 import com.intern.erp.users.model.UserAccount;
-import com.intern.erp.users.model.UserRole;
 import com.intern.erp.users.repository.UserAccountRepository;
 
 @Component
@@ -489,7 +487,7 @@ public class DataInitializer implements CommandLineRunner {
         admin.setUsername("admin");
         admin.setEmail("admin@company.com");
         admin.setPassword(passwordEncoder.encode("demo123"));
-        admin.setRoles(Set.of(UserRole.ADMIN));
+        admin.setRoles(List.of("ADMIN"));
         admin.setEnabled(true);
 
         UserAccount hr = new UserAccount();
@@ -497,7 +495,7 @@ public class DataInitializer implements CommandLineRunner {
         hr.setUsername("hr");
         hr.setEmail("hr@company.com");
         hr.setPassword(passwordEncoder.encode("demo123"));
-        hr.setRoles(Set.of(UserRole.HR));
+        hr.setRoles(List.of("HR"));
         hr.setEnabled(true);
 
         UserAccount finance = new UserAccount();
@@ -505,7 +503,7 @@ public class DataInitializer implements CommandLineRunner {
         finance.setUsername("finance");
         finance.setEmail("finance@company.com");
         finance.setPassword(passwordEncoder.encode("demo123"));
-        finance.setRoles(Set.of(UserRole.FINANCE));
+        finance.setRoles(List.of("FINANCE"));
         finance.setEnabled(true);
 
         userAccountRepository.saveAll(Arrays.asList(admin, hr, finance));

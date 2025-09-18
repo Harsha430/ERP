@@ -1,14 +1,15 @@
 package com.intern.erp.security;
 
-import com.intern.erp.users.model.UserAccount;
-import com.intern.erp.users.model.UserRole;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.Set;
-import java.util.stream.Collectors;
+import com.intern.erp.users.model.UserAccount;
 
 public class CustomUserDetails implements UserDetails {
 
@@ -20,10 +21,10 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        Set<UserRole> roles = user.getRoles();
+        List<String> roles = user.getRoles();
         if (roles == null) return Set.of();
         return roles.stream()
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
                 .collect(Collectors.toSet());
     }
 
@@ -57,4 +58,3 @@ public class CustomUserDetails implements UserDetails {
         return user.isEnabled();
     }
 }
-
