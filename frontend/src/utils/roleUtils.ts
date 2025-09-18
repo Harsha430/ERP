@@ -2,13 +2,11 @@ import { UserRole } from '@/contexts/AuthContext';
 
 /**
  * Determines the appropriate dashboard route based on user roles
- * Priority: Admin can access all areas but defaults to HR dashboard
- * HR users -> HR dashboard
- * Finance users -> Finance dashboard
+ * Priority: Admin -> Admin dashboard, HR -> HR dashboard, Finance -> Finance dashboard
  */
 export const getRoleBasedDashboard = (roles: UserRole[]): string => {
   if (roles.includes('admin')) {
-    return '/dashboard'; // HR Dashboard - admin has access to all areas
+    return '/admin'; // Admin Dashboard
   } else if (roles.includes('hr')) {
     return '/dashboard'; // HR Dashboard
   } else if (roles.includes('finance')) {

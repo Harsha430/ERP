@@ -211,4 +211,21 @@
   .status-absent {
     @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
   }
+  
+  /* Admin Dashboard Specific Styles */
+  .admin-stats-card {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
+  }
+  
+  .admin-quick-action {
+    @apply transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-950 dark:hover:to-purple-950;
+  }
+  
+  .collapsible-section {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .section-toggle {
+    @apply hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-950 dark:hover:to-indigo-950 rounded-lg px-2 py-1 transition-all duration-200;
+  }
 }

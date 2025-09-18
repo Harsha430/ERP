@@ -20,12 +20,13 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const { login, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // Helper function to get role-based dashboard path
   const getRoleBasedDashboard = (roles: UserRole[]): string => {
-    if (roles.includes('admin')) return '/dashboard';
+    if (roles.includes('admin')) return '/admin';
     else if (roles.includes('hr')) return '/dashboard';
     else if (roles.includes('finance')) return '/finance-dashboard';
     return '/dashboard';
@@ -37,7 +38,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
       const dashboardPath = getRoleBasedDashboard(user.roles);
       navigate(dashboardPath, { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, shouldRedirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +48,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
     try {
       const success = await login(email, password, role);
       if (success) {
-        navigate('/dashboard');
+        setShouldRedirect(true);
       } else {
         setError('Invalid credentials. Use demo123 as password.');
       }
