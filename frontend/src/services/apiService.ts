@@ -234,11 +234,19 @@ export const financeService = {
 };
 
 export const adminService = {
+  // User Management
   getUsers: () => apiRequest<any[]>('/admin/users'),
-  getUserById: (id:string) => apiRequest<any>(`/admin/users/${id}`),
-  createUser: (user:any) => apiRequest<any>('/admin/users', { method:'POST', body: JSON.stringify(user)}),
-  updateUser: (id:string, user:any) => apiRequest<any>(`/admin/users/${id}`, { method:'PUT', body: JSON.stringify(user)}),
-  deleteUser: (id:string) => apiRequest<void>(`/admin/users/${id}`, { method:'DELETE'})
+  getUserById: (id: string) => apiRequest<any>(`/admin/users/${id}`),
+  createUser: (user: any) => apiRequest<any>('/admin/users', { method: 'POST', body: JSON.stringify(user) }),
+  updateUser: (id: string, user: any) => apiRequest<any>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(user) }),
+  deleteUser: (id: string) => apiRequest<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+  enableUser: (id: string) => apiRequest<any>(`/admin/users/${id}/enable`, { method: 'PUT' }),
+  disableUser: (id: string) => apiRequest<any>(`/admin/users/${id}/disable`, { method: 'PUT' }),
+  
+  // System Management  
+  getStatistics: () => apiRequest<any>('/admin/statistics'),
+  initializeData: () => apiRequest<string>('/admin/initialize-data', { method: 'POST' }),
+  getStatus: () => apiRequest<string>('/admin/status'),
 };
 
 // Utility function to format currency in INR

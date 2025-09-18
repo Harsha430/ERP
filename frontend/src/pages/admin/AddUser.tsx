@@ -1,54 +1,194 @@
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { UserPlus, Save, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { UserPlus, Save, X, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { adminService } from '@/services/apiService';
+
+interface CreateUserData {
+  username: string;
+  email: string;
+  password: string;
+  roles: string[];
+  enabled: boolean;
+}
 
 export default function AddUser() {
-  const [formData, setFormData] = useState({
-    name: '',
+  const [formData, setFormData] = useState<CreateUserData>({
+    username: '',
     email: '',
-    role: '',
-    department: '',
-    phone: '',
-    notes: '',
+    password: '',
+    roles: [],
+    enabled: true,
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const createUserMutation = useMutation({
+    mutationFn: (userData: CreateUserData) => adminService.createUser(userData),
+    onSuccess: (response) => {
+      // Invalidate queries to refresh user lists
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-statistics'] });
+      
+      toast({
+        title: "Success",
+        description: response.message || "User created successfully",
+      });
+      
+      // Navigate back to manage users
+      navigate('/users');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
+    }
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Mock form submission
-    console.log('Adding user:', formData);
-    
-    toast({
-      title: "User Added Successfully",
-      description: `${formData.name} has been added to the system with ${formData.role} role.`,
-    });
+    // Validation
+    if (!formData.username.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Username is required",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      role: '',
-      department: '',
-      phone: '',
-      notes: '',
-    });
+    if (!formData.email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.password.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Password is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.password !== confirmPassword) {
+      toast({
+        title: "Validation Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.roles.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "At least one role is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createUserMutation.mutate(formData);
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof CreateUserData, value: string | boolean | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
+  const handleRoleChange = (role: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({
+        ...prev,
+        roles: [...prev.roles, role]
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        roles: prev.roles.filter(r => r !== role)
+      }));
+    }
+  };
+
+  const availableRoles = [
+    { 
+      value: 'ADMIN', 
+      label: 'Administrator',
+      description: 'Full system access including user management and system configuration',
+      permissions: [
+        'Full HR Access',
+        'Full Finance Access', 
+        'User Management',
+        'System Configuration',
+        'Data Management'
+      ]
+    },
+    { 
+      value: 'HR', 
+      label: 'HR Manager',
+      description: 'Human resources management capabilities',
+      permissions: [
+        'Employee Management',
+        'Department Management',
+        'Attendance Tracking',
+        'Leave Management',
+        'Payroll Processing'
+      ]
+    },
+    { 
+      value: 'FINANCE', 
+      label: 'Finance Manager',
+      description: 'Financial operations and reporting access',
+      permissions: [
+        'Account Management',
+        'Transaction Processing',
+        'Invoice Management',
+        'Expense Tracking',
+        'Financial Reports'
+      ]
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -58,8 +198,19 @@ export default function AddUser() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold">Add New User</h1>
-          <p className="text-muted-foreground">Create a new user account for the ERP system</p>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/users')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Add New User</h1>
+              <p className="text-muted-foreground">Create a new user account for the ERP system</p>
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -67,27 +218,32 @@ export default function AddUser() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="max-w-2xl mx-auto"
+        className="max-w-4xl mx-auto"
       >
-        <Card className="erp-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              User Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* User Information */}
+            <Card className="erp-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  User Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name *</Label>
+                  <Label htmlFor="username">Username *</Label>
                   <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter full name"
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="Enter username"
                     required
+                    disabled={createUserMutation.isPending}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Used for login. Should be unique across the system.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -99,166 +255,180 @@ export default function AddUser() {
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="Enter email address"
                     required
+                    disabled={createUserMutation.isPending}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Must be a valid email address. Used for notifications and recovery.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role *</Label>
-                  <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hr">HR Manager</SelectItem>
-                      <SelectItem value="finance">Finance Manager</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="password">Password *</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="Enter password"
+                      required
+                      disabled={createUserMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Minimum 6 characters required.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select value={formData.department} onValueChange={(value) => handleInputChange('department', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hr">Human Resources</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="admin">Administration</SelectItem>
-                      <SelectItem value="engineering">Engineering</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="sales">Sales</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
                   <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="Enter phone number"
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm password"
+                    required
+                    disabled={createUserMutation.isPending}
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => handleInputChange('notes', e.target.value)}
-                    placeholder="Additional notes or comments"
-                    rows={3}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="enabled"
+                    checked={formData.enabled}
+                    onCheckedChange={(checked) => handleInputChange('enabled', checked as boolean)}
+                    disabled={createUserMutation.isPending}
                   />
+                  <Label htmlFor="enabled">Account Enabled</Label>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              <div className="flex gap-4 pt-6">
-                <Button type="submit" className="bg-gradient-primary hover:opacity-90 flex-1">
+            {/* Role Selection */}
+            <Card className="erp-card">
+              <CardHeader>
+                <CardTitle>Role Assignment *</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Select one or more roles for this user. Multiple roles provide combined permissions.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {availableRoles.map((role) => (
+                  <div key={role.value} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={role.value}
+                        checked={formData.roles.includes(role.value)}
+                        onCheckedChange={(checked) => handleRoleChange(role.value, checked as boolean)}
+                        disabled={createUserMutation.isPending}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor={role.value} className="text-base font-medium">
+                          {role.label}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {role.description}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {formData.roles.includes(role.value) && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="ml-6 space-y-1"
+                      >
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                          Permissions included:
+                        </p>
+                        <div className="grid grid-cols-1 gap-1">
+                          {role.permissions.map((permission) => (
+                            <div key={permission} className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                              <span className="text-xs text-muted-foreground">{permission}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Form Actions */}
+          <Card className="erp-card">
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <Button 
+                  type="submit" 
+                  className="bg-gradient-primary hover:opacity-90 flex-1"
+                  disabled={createUserMutation.isPending}
+                >
                   <Save className="h-4 w-4 mr-2" />
-                  Create User
+                  {createUserMutation.isPending ? 'Creating User...' : 'Create User'}
                 </Button>
-                <Button type="button" variant="outline" className="flex-1">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => navigate('/users')}
+                  disabled={createUserMutation.isPending}
+                >
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </form>
       </motion.div>
 
-      {/* Permission Preview */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="max-w-2xl mx-auto"
-      >
-        <Card className="erp-card">
-          <CardHeader>
-            <CardTitle>Role Permissions Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {formData.role && (
-              <div className="space-y-4">
-                <h4 className="font-medium">
-                  {formData.role === 'hr' && 'HR Manager Permissions:'}
-                  {formData.role === 'finance' && 'Finance Manager Permissions:'}
-                  {formData.role === 'admin' && 'Administrator Permissions:'}
-                </h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {formData.role === 'hr' && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Employee Management</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Attendance Tracking</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Leave Management</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Payroll Processing</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {formData.role === 'finance' && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Account Management</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Transaction Processing</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Budget Management</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Financial Reports</span>
-                      </div>
-                    </>
-                  )}
-                  
-                  {formData.role === 'admin' && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Full HR Access</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">Full Finance Access</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">User Management</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm">System Configuration</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+      {/* Selected Roles Summary */}
+      {formData.roles.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="max-w-4xl mx-auto"
+        >
+          <Card className="erp-card">
+            <CardHeader>
+              <CardTitle>Selected Roles Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {formData.roles.map((role) => {
+                  const roleInfo = availableRoles.find(r => r.value === role);
+                  return (
+                    <div 
+                      key={role} 
+                      className="px-3 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium"
+                    >
+                      {roleInfo?.label}
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+              <p className="text-sm text-muted-foreground mt-3">
+                This user will have combined permissions from all selected roles.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }

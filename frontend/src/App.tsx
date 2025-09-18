@@ -31,6 +31,7 @@ import Budgeting from "./pages/finance/Budgeting";
 import Reports from "./pages/finance/Reports";
 
 // Admin Pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageUsers from "./pages/admin/ManageUsers";
 import AddUser from "./pages/admin/AddUser";
 
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="budgeting" element={<ProtectedRoute allowedRoles={['finance','admin']}><Budgeting /></ProtectedRoute>} />
               <Route path="reports" element={<ProtectedRoute allowedRoles={['finance','admin']}><Reports /></ProtectedRoute>} />
 
+              <Route path="admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
               <Route path="users" element={<ProtectedRoute allowedRoles={['admin']}><ManageUsers /></ProtectedRoute>} />
               <Route path="add-user" element={<ProtectedRoute allowedRoles={['admin']}><AddUser /></ProtectedRoute>} />
 
