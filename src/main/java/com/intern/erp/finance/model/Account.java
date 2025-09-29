@@ -23,5 +23,5 @@ public class Account {
     private AccountType type;
     private String description;
     private Boolean isActive;
+    private String email; // Email address for account notifications
 }
-

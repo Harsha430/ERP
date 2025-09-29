@@ -12,8 +12,11 @@ import com.intern.erp.finance.repository.JournalEntryRepository;
 import com.intern.erp.finance.repository.PayrollLedgerEntryRepository;
 import com.intern.erp.finance.repository.PayrollEntryRepository;
 import com.intern.erp.finance.service.PayrollService;
+import com.intern.erp.email.EmailTemplate;
+import com.intern.erp.outbox.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,9 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayrollLedgerEntryRepository payrollLedgerEntryRepository;
     private final AccountRepository accountRepository;
     
+    @Autowired
+    private OutboxService outboxService;
+
     @Override
     @Transactional
     public PayrollEntry recordPayroll(PayrollEntry payrollEntry) {
@@ -100,7 +106,7 @@ public class PayrollServiceImpl implements PayrollService {
         debitEntry.setCreditAmount(null);
         debitEntry.setJournalEntryId(journalEntry.getId());
         payrollLedgerEntryRepository.save(debitEntry);
-        
+
         // Create credit ledger entry (Bank Account)
         PayrollLedgerEntry creditEntry = new PayrollLedgerEntry();
         creditEntry.setAccountId(journalEntry.getCreditAccountId().getId());
@@ -110,8 +116,34 @@ public class PayrollServiceImpl implements PayrollService {
         creditEntry.setCreditAmount(journalEntry.getAmount());
         creditEntry.setJournalEntryId(journalEntry.getId());
         payrollLedgerEntryRepository.save(creditEntry);
-        
-        log.info("Payroll ledger entries created for journal entry: {}", journalEntry.getId());
+
+        // Notify both account holders via outbox email (if emails are available)
+        Account debitAccount = journalEntry.getDebitAccountId();
+        Account creditAccount = journalEntry.getCreditAccountId();
+        String amountStr = String.valueOf(journalEntry.getAmount());
+        if (debitAccount != null && debitAccount.getEmail() != null) {
+            outboxService.addTemplateEmailEvent(
+                debitAccount.getEmail(),
+                EmailTemplate.ACCOUNT_DEBITED,
+                java.util.Map.of(
+                    "accountName", debitAccount.getName(),
+                    "amount", amountStr,
+                    "narration", journalEntry.getNarration()
+                )
+            );
+        }
+        if (creditAccount != null && creditAccount.getEmail() != null) {
+            outboxService.addTemplateEmailEvent(
+                creditAccount.getEmail(),
+                EmailTemplate.ACCOUNT_CREDITED,
+                java.util.Map.of(
+                    "accountName", creditAccount.getName(),
+                    "amount", amountStr,
+                    "narration", journalEntry.getNarration()
+                )
+            );
+        }
+        log.info("Payroll ledger entries created for journal entry: {} and notification emails queued.", journalEntry.getId());
     }
     
     private Account getOrCreateAccount(String accountName, AccountType accountType) {

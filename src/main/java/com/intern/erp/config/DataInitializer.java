@@ -217,7 +217,9 @@ public class DataInitializer implements CommandLineRunner {
             // Part-time and Contract employees
             createEmployee("EMP013", "Karan", "Malhotra", "karan.malhotra@company.com", "+91-9876543113", departments.get(0).getId(), positions.get(0).getId(), "EMP001", new BigDecimal("450000"), EmployeeType.PART_TIME, EmployeeStatus.ACTIVE, "2023-01-10"),
             createEmployee("EMP014", "Ritu", "Agarwal", "ritu.agarwal@company.com", "+91-9876543114", departments.get(4).getId(), positions.get(9).getId(), null, new BigDecimal("580000"), EmployeeType.CONTRACT, EmployeeStatus.ACTIVE, "2023-03-15"),
-            createEmployee("EMP015", "Deepak", "Rao", "deepak.rao@company.com", "+91-9876543115", departments.get(0).getId(), positions.get(0).getId(), "EMP003", new BigDecimal("350000"), EmployeeType.INTERN, EmployeeStatus.ACTIVE, "2023-06-01")
+            createEmployee("EMP015", "Deepak", "Rao", "deepak.rao@company.com", "+91-9876543115", departments.get(0).getId(), positions.get(0).getId(), "EMP003", new BigDecimal("350000"), EmployeeType.INTERN, EmployeeStatus.ACTIVE, "2023-06-01"),
+         createEmployee("EMP016", "Harshasri", "Karthikeya", "99220040214@klu.ac.in", "+91-6302313370", departments.get(0).getId(), positions.get(0).getId(), "EMP003", new BigDecimal("350000"), EmployeeType.INTERN, EmployeeStatus.ACTIVE, "2023-06-01"),
+
         };
         
         List<Employee> employees = employeeRepository.saveAll(Arrays.asList(employeeData));
@@ -268,31 +270,31 @@ public class DataInitializer implements CommandLineRunner {
         
         Account[] accountData = {
             // Assets
-            new Account(1001L, "Cash", "1001", AccountType.ASSET, "Company Cash Account", true),
-            new Account(1002L, "Bank Account", "1002", AccountType.ASSET, "Company Bank Account", true),
-            new Account(1003L, "Accounts Receivable", "1003", AccountType.ASSET, "Money owed by customers", true),
-            new Account(1004L, "Office Equipment", "1004", AccountType.ASSET, "Office furniture and equipment", true),
-            
+            new Account(1001L, "Cash", "1001", AccountType.ASSET, "Company Cash Account", true, "99220040214@klu.ac.in"),
+            new Account(1002L, "Bank Account", "1002", AccountType.ASSET, "Company Bank Account", true, "99220040214@klu.ac.in"),
+            new Account(1003L, "Accounts Receivable", "1003", AccountType.ASSET, "Money owed by customers", true, "99220040214@klu.ac.in"),
+            new Account(1004L, "Office Equipment", "1004", AccountType.ASSET, "Office furniture and equipment", true, "99220040214@klu.ac.in"),
+
             // Liabilities
-            new Account(2001L, "Accounts Payable", "2001", AccountType.LIABILITY, "Money owed to suppliers", true),
-            new Account(2002L, "Salary Payable", "2002", AccountType.LIABILITY, "Unpaid salaries", true),
-            new Account(2003L, "Tax Payable", "2003", AccountType.LIABILITY, "Taxes owed", true),
-            
+            new Account(2001L, "Accounts Payable", "2001", AccountType.LIABILITY, "Money owed to suppliers", true, "99220040214@klu.ac.in"),
+            new Account(2002L, "Salary Payable", "2002", AccountType.LIABILITY, "Unpaid salaries", true, "99220040214@klu.ac.in"),
+            new Account(2003L, "Tax Payable", "2003", AccountType.LIABILITY, "Taxes owed", true, "99220040214@klu.ac.in"),
+
             // Equity
-            new Account(3001L, "Owner's Equity", "3001", AccountType.EQUITY, "Owner's investment in business", true),
-            new Account(3002L, "Retained Earnings", "3002", AccountType.EQUITY, "Accumulated profits", true),
-            
+            new Account(3001L, "Owner's Equity", "3001", AccountType.EQUITY, "Owner's investment in business", true, "99220040214@klu.ac.in"),
+            new Account(3002L, "Retained Earnings", "3002", AccountType.EQUITY, "Accumulated profits", true, "99220040214@klu.ac.in"),
+
             // Income
-            new Account(4001L, "Service Revenue", "4001", AccountType.INCOME, "Revenue from services", true),
-            new Account(4002L, "Consulting Revenue", "4002", AccountType.INCOME, "Revenue from consulting", true),
-            
+            new Account(4001L, "Service Revenue", "4001", AccountType.INCOME, "Revenue from services", true, "99220040214@klu.ac.in"),
+            new Account(4002L, "Consulting Revenue", "4002", AccountType.INCOME, "Revenue from consulting", true, "99220040214@klu.ac.in"),
+
             // Expenses
-            new Account(5001L, "Salary Expense", "5001", AccountType.EXPENSE, "Employee salaries", true),
-            new Account(5002L, "Office Rent", "5002", AccountType.EXPENSE, "Monthly office rent", true),
-            new Account(5003L, "Utilities Expense", "5003", AccountType.EXPENSE, "Electricity, water, internet", true),
-            new Account(5004L, "Travel Expense", "5004", AccountType.EXPENSE, "Business travel costs", true),
-            new Account(5005L, "Office Supplies", "5005", AccountType.EXPENSE, "Stationery and supplies", true),
-            new Account(5006L, "Marketing Expense", "5006", AccountType.EXPENSE, "Advertising and marketing", true)
+            new Account(5001L, "Salary Expense", "5001", AccountType.EXPENSE, "Employee salaries", true, "99220040214@klu.ac.in"),
+            new Account(5002L, "Office Rent", "5002", AccountType.EXPENSE, "Monthly office rent", true, "99220040214@klu.ac.in"),
+            new Account(5003L, "Utilities Expense", "5003", AccountType.EXPENSE, "Electricity, water, internet", true, "99220040214@klu.ac.in"),
+            new Account(5004L, "Travel Expense", "5004", AccountType.EXPENSE, "Business travel costs", true, "99220040214@klu.ac.in"),
+            new Account(5005L, "Office Supplies", "5005", AccountType.EXPENSE, "Stationery and supplies", true, "99220040214@klu.ac.in"),
+            new Account(5006L, "Marketing Expense", "5006", AccountType.EXPENSE, "Advertising and marketing", true, "99220040214@klu.ac.in")
         };
         
         List<Account> accounts = accountRepository.saveAll(Arrays.asList(accountData));
@@ -505,6 +507,8 @@ public class DataInitializer implements CommandLineRunner {
         finance.setPassword(passwordEncoder.encode("demo123"));
         finance.setRoles(List.of("FINANCE"));
         finance.setEnabled(true);
+
+
 
         userAccountRepository.saveAll(Arrays.asList(admin, hr, finance));
         System.out.println("✅ Seeded 3 user accounts (admin/hr/finance) with password demo123");

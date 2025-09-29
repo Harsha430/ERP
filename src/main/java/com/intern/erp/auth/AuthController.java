@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.intern.erp.email.EmailTemplate;
+import com.intern.erp.outbox.OutboxService;
 import com.intern.erp.security.CustomUserDetails;
 import com.intern.erp.users.model.UserAccount;
 import com.intern.erp.users.repository.UserAccountRepository;
@@ -31,15 +33,18 @@ public class AuthController {
 
     private final UserAccountRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final OutboxService outboxService;
 
-    public AuthController(UserAccountRepository userRepo, PasswordEncoder passwordEncoder) {
+    public AuthController(UserAccountRepository userRepo, PasswordEncoder passwordEncoder, OutboxService outboxService) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
+        this.outboxService = outboxService;
     }
 
     // DTOs
     public record LoginRequest(String identifier, String password) {}
     public record LoginResponse(boolean success, String message, String username, Set<String> roles) {}
+    public record RegisterRequest(String username, String email, String password, List<String> roles) {}
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req, HttpServletRequest httpReq) {
@@ -101,6 +106,28 @@ public class AuthController {
         return Map.of("success", true);
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+        if (req == null || req.username() == null || req.email() == null || req.password() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("success", false, "message", "Missing registration fields"));
+        }
+        if (userRepo.findByUsername(req.username()).isPresent() || userRepo.findByEmail(req.email().toLowerCase()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", false, "message", "Username or email already exists"));
+        }
+        UserAccount user = new UserAccount();
+        user.setUsername(req.username());
+        user.setEmail(req.email().toLowerCase());
+        user.setPassword(passwordEncoder.encode(req.password()));
+        user.setEnabled(true);
+        user.setRoles(req.roles() != null ? req.roles() : List.of("USER"));
+        userRepo.save(user);
+        // Add outbox event for welcome email
+        outboxService.addTemplateEmailEvent(user.getEmail(), EmailTemplate.WELCOME, Map.of(
+            "username", user.getUsername()
+        ));
+        return ResponseEntity.ok(Map.of("success", true, "message", "User registered successfully"));
+    }
+
     private Set<String> toRoleNames(List<String> roles) {
         if (roles == null) return Set.of();
         Set<String> out = new HashSet<>();
@@ -108,4 +135,3 @@ public class AuthController {
         return out;
     }
 }
-

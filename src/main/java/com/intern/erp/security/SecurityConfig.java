@@ -40,8 +40,8 @@ public class SecurityConfig {
             .cors(cors -> {})
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/auth/login", "/auth/logout", "/auth/me").permitAll()
-                .requestMatchers("/auth/change-password").authenticated()
+                .requestMatchers("/auth/login", "/auth/logout", "/auth/me", "/auth/register").permitAll()
+                .requestMatchers("/outbox/**").permitAll() // Allow outbox testing endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/hr/**").hasAnyRole("HR","ADMIN")
                 .requestMatchers("/api/finance/**").hasAnyRole("FINANCE","ADMIN")
