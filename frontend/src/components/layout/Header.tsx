@@ -35,6 +35,10 @@ export function Header() {
       className="bg-card border-b border-border px-6 py-4 flex items-center justify-between"
     >
       <div className="flex items-center gap-4">
+        {/* Logo added here */}
+        <div className="w-10 h-10 bg-white rounded flex items-center justify-center shadow mr-2">
+          <img src="/ERP.png" alt="ERP Logo" className="w-8 h-8 object-contain" />
+        </div>
         <h1 className="text-xl font-semibold">Enterprise Resource Planning System</h1>
         {roles.length > 0 && (
           <div className="flex items-center gap-1">
