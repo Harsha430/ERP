@@ -431,6 +431,4 @@ If you have any questions or need help with setup, please:
 - ✅ Docker support for easy deployment
 - ✅ Extensive test coverage
 
----
-
-**Built with ❤️ for modern businesses**
+--
