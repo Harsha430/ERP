@@ -69,7 +69,16 @@ public class OutboxEmailProcessor {
                 } else {
                     String subject = node.has("subject") ? node.get("subject").asText() : "Notification";
                     String body = node.has("body") ? node.get("body").asText() : event.getPayload();
-                    emailService.sendEmail(to, subject, body);
+                    
+                    // Check if there's an attachment
+                    if (node.has("attachment") && node.has("fileName")) {
+                        String attachmentBase64 = node.get("attachment").asText();
+                        String fileName = node.get("fileName").asText();
+                        byte[] attachmentBytes = java.util.Base64.getDecoder().decode(attachmentBase64);
+                        emailService.sendEmailWithAttachment(to, subject, body, attachmentBytes, fileName);
+                    } else {
+                        emailService.sendEmail(to, subject, body);
+                    }
                 }
                 event.setSent(true);
                 event.setSentAt(Instant.now());

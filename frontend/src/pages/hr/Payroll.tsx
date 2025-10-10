@@ -28,7 +28,7 @@ export default function Payroll() {
     employeeId: '', 
     employeeName: '', 
     grossSalary: '', 
-    payDate: new Date().toISOString().split('T')[0],
+    payDate: '', // Start empty so user must select a date
     status: 'GENERATED'
   });
 
@@ -46,7 +46,9 @@ export default function Payroll() {
     mutationFn: async (payload: any) => {
       const emp = (employeesQuery.data || []).find((e: any) => e.id == payload.employeeId);
       const employeeId = emp ? emp.employeeId : payload.employeeId;
-      return await hrService.generatePayslip(employeeId, payload.payrollMonth);
+      // Extract month from payDate for payroll month
+      const payrollMonth = new Date(payload.payDate).toISOString().slice(0, 7); // YYYY-MM format
+      return await hrService.generatePayslip(employeeId, payrollMonth);
     },
     onMutate: async (payload: any) => {
       await qc.cancelQueries({ queryKey: ['hr-payslips'] });
@@ -60,8 +62,7 @@ export default function Payroll() {
         totalDeductions: Number(payload.grossSalary) * 0.22,
         netSalary: Number(payload.grossSalary) * 0.78,
         payDate: payload.payDate,
-        status: 'GENERATED',
-        payrollMonth: payload.payrollMonth
+        status: 'GENERATED'
       };
       qc.setQueryData<any[]>(['hr-payslips'], (old = []) => [optimistic, ...old]);
       return { prev };
@@ -131,19 +132,22 @@ export default function Payroll() {
       toast({ title: 'Validation Error', description: 'Employee is required', variant: 'destructive' }); 
       return; 
     }
+    if (!form.payDate) { 
+      toast({ title: 'Validation Error', description: 'Pay Date is required', variant: 'destructive' }); 
+      return; 
+    }
+
     const emp = (employeesQuery.data || []).find((e: any) => e.id == form.employeeId);
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
     createMutation.mutate({ 
       ...form, 
-      employeeName: emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : form.employeeName,
-      payrollMonth: currentMonth
+      employeeName: emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : form.employeeName
     });
     setOpen(false);
     setForm({ 
       employeeId: '', 
       employeeName: '', 
       grossSalary: '', 
-      payDate: new Date().toISOString().split('T')[0],
+      payDate: '', // Start empty so user must select a date
       status: 'GENERATED'
     });
   };
@@ -317,6 +321,7 @@ export default function Payroll() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className='space-y-1'>
                   <Label>Pay Date</Label>
                   <Input 

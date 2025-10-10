@@ -1,61 +1,117 @@
 # 🏢 Enterprise Resource Planning (ERP) System
 
-A comprehensive, full-stack ERP system built with **Spring Boot** and **React** that manages HR, Finance, and Administrative operations for modern businesses.
+A comprehensive, full-stack ERP system built with **Spring Boot** and **React** that manages HR, Finance, and Administrative operations for modern businesses. Features advanced payroll processing with PDF generation, email notifications, and seamless inter-module integration.
 
 ![ERP System](https://img.shields.io/badge/ERP-System-blue?style=for-the-badge)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green?style=for-the-badge&logo=spring)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-green?style=for-the-badge&logo=spring)
 ![React](https://img.shields.io/badge/React-18.x-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Database-green?style=for-the-badge&logo=mongodb)
+![PDF](https://img.shields.io/badge/PDF-Generation-red?style=for-the-badge&logo=adobe)
+![Email](https://img.shields.io/badge/Email-Integration-orange?style=for-the-badge&logo=gmail)
 
 ## 🚀 Features Overview
 
 ### 👥 Human Resources (HR) Module
-- **Employee Management** - Complete employee lifecycle management
-- **Department & Position Management** - Organizational structure
-- **Attendance Tracking** - Daily attendance with status management
-- **Leave Management** - Leave requests, approvals, and balance tracking
-- **Payroll System** - Automated payslip generation with finance integration
-- **Employee Reports** - Comprehensive HR analytics
+- **Employee Management** - Complete employee lifecycle management with CRUD operations
+- **Department & Position Management** - Organizational structure with hierarchical management
+- **Attendance Tracking** - Daily attendance with status management and overtime calculation
+- **Leave Management** - Leave requests, approvals, balance tracking with multiple leave types
+- **Advanced Payroll System** - Automated payslip generation with:
+  - 📧 **Email Notifications** - Detailed payslip emails with complete salary breakdown
+  - 📄 **PDF Generation** - Professional PDF payslips with company branding
+  - 🔄 **Duplicate Handling** - Smart duplicate detection and cleanup
+  - 💰 **Salary Components** - Basic salary, allowances, deductions, tax calculations
+  - 📊 **Attendance Integration** - Pro-rated salary based on working/present days
+  - 🏦 **Finance Integration** - Automatic journal entries for payroll transactions
+- **Employee Reports** - Comprehensive HR analytics and reporting
 
 ### 💰 Finance Module
-- **Accounts Management** - Chart of accounts with double-entry bookkeeping
+- **Advanced Accounts Management** - Chart of accounts with double-entry bookkeeping
+  - 🏛️ Account types (Assets, Liabilities, Equity, Revenue, Expenses)
+  - 🔄 Automated journal entries with proper debit/credit handling
+  - 📊 Real-time account balances and transaction history
 - **Invoice Management** - Customer invoicing and payment tracking
 - **Expense Management** - Expense categorization and approval workflow
 - **Budget Management** - Budget planning, tracking, and variance analysis
 - **Financial Reports** - P&L, Balance Sheet, Cash Flow, and custom reports
 - **Transaction Management** - Unified view of all financial transactions
-- **Payroll Integration** - Seamless HR-Finance payroll workflow
+- **Payroll Integration** - Seamless HR-Finance payroll workflow with:
+  - 💼 Automatic expense entries for salary payments
+  - 🧾 Payroll journal entries with proper account mapping
+  - 📈 Payroll expense tracking and reporting
 
 ### 🔐 Administration Module
-- **User Management** - Role-based access control
+- **Advanced User Management** - Role-based access control with:
+  - 👤 User registration and profile management
+  - 🔑 Role assignment (Admin, HR, Finance)
+  - 📊 User activity monitoring and statistics
+  - 🎯 Enhanced dashboard with quick actions and collapsible sections
 - **Security** - JWT authentication and authorization
 - **System Configuration** - Application settings and preferences
 - **Audit Trails** - Complete system activity logging
+- **Email System** - Outbox pattern for reliable email delivery:
+  - 📧 Template-based email system
+  - 🔄 Retry mechanism for failed emails
+  - ☠️ Dead letter queue for permanent failures
+  - 📊 Email delivery statistics and monitoring
 
 ## 🛠️ Technology Stack
 
-### Backend
-- **Framework**: Spring Boot 3.x
+### Backend Technologies
+- **Framework**: Spring Boot 3.5.5
 - **Language**: Java 17
-- **Database**: MongoDB
-- **Security**: Spring Security with JWT
+- **Database**: MongoDB with Spring Data MongoDB
+- **Security**: Spring Security with JWT authentication
 - **Documentation**: OpenAPI/Swagger
 - **Build Tool**: Maven
+- **PDF Generation**: iText PDF 5.5.13.3
+- **Email**: Spring Boot Mail Starter with JavaMail
+- **Validation**: Spring Boot Validation Starter
+- **DevTools**: Spring Boot DevTools for development
 
-### Frontend
-- **Framework**: React 18.x with TypeScript
-- **UI Library**: Tailwind CSS + shadcn/ui
-- **State Management**: TanStack Query (React Query)
-- **Charts**: Recharts
+### Backend Libraries & Dependencies
+- **Lombok** - Reducing boilerplate code
+- **Spring Boot Actuator** - Production monitoring
+- **Spring Security OAuth2** - OAuth2 authentication
+- **Jackson** - JSON processing
+- **MongoDB Template** - Advanced MongoDB operations
+- **Base64** - Attachment encoding/decoding
+
+### Frontend Technologies
+- **Framework**: React 18.x with TypeScript 5.x
+- **UI Library**: Tailwind CSS + shadcn/ui components
+- **State Management**: TanStack Query (React Query) v4
+- **HTTP Client**: Axios for API communication
+- **Charts & Visualization**: Recharts
 - **Animations**: Framer Motion
 - **Build Tool**: Vite
+- **Icons**: Lucide React icons
+- **Date Handling**: Built-in JavaScript Date API
 
-### Development Tools
+### Frontend Libraries & Dependencies
+- **React Hook Form** - Form management
+- **React Router DOM** - Client-side routing
+- **Radix UI** - Headless UI components
+- **Class Variance Authority** - CSS utility management
+- **Tailwind Merge** - Tailwind CSS class merging
+- **React Query DevTools** - Development debugging
+
+### Development & DevOps Tools
 - **IDE**: IntelliJ IDEA / VS Code
 - **Version Control**: Git
 - **API Testing**: Postman
 - **Database GUI**: MongoDB Compass
+- **Package Management**: npm/yarn (Frontend), Maven (Backend)
+- **Code Quality**: ESLint, Prettier (Frontend)
+- **Type Checking**: TypeScript compiler
+
+### Infrastructure & Deployment
+- **Application Server**: Embedded Tomcat (Spring Boot)
+- **Database**: MongoDB (Local/Cloud)
+- **Email SMTP**: Configurable SMTP server
+- **File Storage**: Local file system for PDFs
+- **Environment Configuration**: Spring Profiles
 
 ## 📋 Prerequisites
 
@@ -191,15 +247,32 @@ const API_BASE_URL = 'http://localhost:8081/api';
 - **Employee Onboarding**: Complete employee registration with document management
 - **Attendance System**: Clock in/out with overtime calculation
 - **Leave Management**: Multiple leave types with approval workflow
-- **Payroll Processing**: Automated salary calculation with tax deductions
+- **Advanced Payroll Processing**: 
+  - 💰 Automated salary calculation with tax deductions
+  - 📧 **Email Integration**: Detailed payslip emails with complete breakdown
+  - 📄 **PDF Payslips**: Professional PDF generation with company branding
+  - 🔄 **Smart Duplicate Handling**: Prevents duplicate payslips with cleanup
+  - 🏦 **Finance Integration**: Automatic journal entries creation
+  - ⚡ **Outbox Pattern**: Reliable email delivery with retry mechanism
+  - 📊 **Salary Components**: Basic salary, HRA, transport, medical allowances
+  - 💸 **Deductions**: PF, professional tax, income tax (TDS)
+  - 📅 **Attendance-based**: Pro-rated salary calculation
 - **Performance Tracking**: Employee performance reviews and ratings
 
 ### Finance Module Features
-- **Double-Entry Bookkeeping**: Automatic journal and ledger entries
+- **Advanced Double-Entry Bookkeeping**: 
+  - 🏛️ Complete chart of accounts (Assets, Liabilities, Equity, Revenue, Expenses)
+  - 📊 Automatic journal and ledger entries
+  - ⚖️ Balance validation and integrity checks
 - **Invoice Lifecycle**: From creation to payment with aging reports
 - **Expense Management**: Multi-level approval with receipt management
 - **Budget Planning**: Annual/quarterly budgets with variance analysis
 - **Financial Reporting**: Real-time P&L, Balance Sheet, and Cash Flow
+- **Payroll-Finance Integration**:
+  - 💼 Automatic expense entries for payroll
+  - 🧾 Proper journal entries with account mapping
+  - 📈 Payroll expense tracking and reporting
+  - 🔄 Real-time financial impact of payroll processing
 
 ### Integration Features
 - **HR-Finance Integration**: Payroll automatically creates finance transactions

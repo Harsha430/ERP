@@ -33,6 +33,24 @@ public class OutboxService {
         }
     }
 
+    public OutboxEvent addEmailEventWithAttachment(String to, String subject, String body, byte[] attachment, String fileName) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                "to", to,
+                "subject", subject,
+                "body", body,
+                "attachment", java.util.Base64.getEncoder().encodeToString(attachment),
+                "fileName", fileName
+            ));
+            OutboxEvent event = new OutboxEvent();
+            event.setType("EMAIL");
+            event.setPayload(payload);
+            return repo.save(event);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to add email event with attachment", e);
+        }
+    }
+
     // New: template based email
     public OutboxEvent addTemplateEmailEvent(String to, EmailTemplate template, Map<String,Object> vars) {
         try {
