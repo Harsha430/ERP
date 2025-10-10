@@ -1,67 +1,18 @@
 # 🏢 Enterprise Resource Planning (ERP) System
 
-> A comprehensive, full-stack ERP system built with **Spring Boot** and **React** that streamlines HR, Finance, and Administrative operations for modern businesses. 
+A comprehensive, full-stack ERP system built with **Spring Boot** and **React** that manages HR, Finance, and Administrative operations for modern businesses. Features advanced payroll processing with PDF generation, email notifications, and seamless inter-module integration.
 
-**✨ Key Highlights:** Advanced payroll processing with PDF generation, intelligent email notifications, seamless inter-module integration, and robust financial management with double-entry bookkeeping.
-
-<div align="center">
-
-**🚀 Modern • 🔒 Secure • 📊 Scalable • 💼 Enterprise-Ready**
-
-</div>
-
-<div align="center">
-
-![ERP System](https://img.shields.io/badge/ERP-System-blue?style=for-the-badge&logo=building)
+![ERP System](https://img.shields.io/badge/ERP-System-blue?style=for-the-badge)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-green?style=for-the-badge&logo=spring)
 ![React](https://img.shields.io/badge/React-18.x-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Database-green?style=for-the-badge&logo=mongodb)
-
 ![PDF](https://img.shields.io/badge/PDF-Generation-red?style=for-the-badge&logo=adobe)
 ![Email](https://img.shields.io/badge/Email-Integration-orange?style=for-the-badge&logo=gmail)
-![JWT](https://img.shields.io/badge/JWT-Authentication-black?style=for-the-badge&logo=jsonwebtokens)
-![Maven](https://img.shields.io/badge/Maven-Build-orange?style=for-the-badge&logo=apachemaven)
-
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge)](http://makeapullrequest.com)
-
-</div>
-
----
-
-## 📋 Table of Contents
-
-- [🚀 Features Overview](#-features-overview)
-- [🛠️ Technology Stack](#️-technology-stack)
-- [📋 Prerequisites](#-prerequisites)
-- [🚀 Quick Start](#-quick-start)
-- [👤 Default Login Credentials](#-default-login-credentials)
-- [📁 Project Structure](#-project-structure)
-- [🔧 Configuration](#-configuration)
-- [📊 Key Features in Detail](#-key-features-in-detail)
-- [📈 API Documentation](#-api-documentation)
-- [🔒 Security Features](#-security-features)
-- [🚀 Deployment](#-deployment)
-- [🤝 Contributing](#-contributing)
-- [📞 Support](#-support)
-
----
 
 ## 🚀 Features Overview
 
-<div align="center">
-
-### 🎯 **Three Powerful Modules** • **Seamless Integration** • **Modern UI/UX**
-
-</div>
-
 ### 👥 Human Resources (HR) Module
-
-<details>
-<summary><strong>🔍 Click to expand HR features</strong></summary>
-
-<br>
 - **Employee Management** - Complete employee lifecycle management with CRUD operations
 - **Department & Position Management** - Organizational structure with hierarchical management
 - **Attendance Tracking** - Daily attendance with status management and overtime calculation
@@ -75,14 +26,7 @@
   - 🏦 **Finance Integration** - Automatic journal entries for payroll transactions
 - **Employee Reports** - Comprehensive HR analytics and reporting
 
-</details>
-
 ### 💰 Finance Module
-
-<details>
-<summary><strong>🔍 Click to expand Finance features</strong></summary>
-
-<br>
 - **Advanced Accounts Management** - Chart of accounts with double-entry bookkeeping
   - 🏛️ Account types (Assets, Liabilities, Equity, Revenue, Expenses)
   - 🔄 Automated journal entries with proper debit/credit handling
@@ -97,14 +41,7 @@
   - 🧾 Payroll journal entries with proper account mapping
   - 📈 Payroll expense tracking and reporting
 
-</details>
-
 ### 🔐 Administration Module
-
-<details>
-<summary><strong>🔍 Click to expand Admin features</strong></summary>
-
-<br>
 - **Advanced User Management** - Role-based access control with:
   - 👤 User registration and profile management
   - 🔑 Role assignment (Admin, HR, Finance)
@@ -119,110 +56,62 @@
   - ☠️ Dead letter queue for permanent failures
   - 📊 Email delivery statistics and monitoring
 
-</details>
-
----
-
 ## 🛠️ Technology Stack
 
-<div align="center">
+### Backend Technologies
+- **Framework**: Spring Boot 3.5.5
+- **Language**: Java 17
+- **Database**: MongoDB with Spring Data MongoDB
+- **Security**: Spring Security with JWT authentication
+- **Documentation**: OpenAPI/Swagger
+- **Build Tool**: Maven
+- **PDF Generation**: iText PDF 5.5.13.3
+- **Email**: Spring Boot Mail Starter with JavaMail
+- **Validation**: Spring Boot Validation Starter
+- **DevTools**: Spring Boot DevTools for development
 
-### 🏗️ **Built with Modern Technologies** • **Scalable Architecture** • **Best Practices**
+### Backend Libraries & Dependencies
+- **Lombok** - Reducing boilerplate code
+- **Spring Boot Actuator** - Production monitoring
+- **Spring Security OAuth2** - OAuth2 authentication
+- **Jackson** - JSON processing
+- **MongoDB Template** - Advanced MongoDB operations
+- **Base64** - Attachment encoding/decoding
 
-</div>
+### Frontend Technologies
+- **Framework**: React 18.x with TypeScript 5.x
+- **UI Library**: Tailwind CSS + shadcn/ui components
+- **State Management**: TanStack Query (React Query) v4
+- **HTTP Client**: Axios for API communication
+- **Charts & Visualization**: Recharts
+- **Animations**: Framer Motion
+- **Build Tool**: Vite
+- **Icons**: Lucide React icons
+- **Date Handling**: Built-in JavaScript Date API
 
-<table>
-<tr>
-<td width="50%">
+### Frontend Libraries & Dependencies
+- **React Hook Form** - Form management
+- **React Router DOM** - Client-side routing
+- **Radix UI** - Headless UI components
+- **Class Variance Authority** - CSS utility management
+- **Tailwind Merge** - Tailwind CSS class merging
+- **React Query DevTools** - Development debugging
 
-### 🔧 **Backend Stack**
-```
-🚀 Spring Boot 3.5.5
-☕ Java 17
-🍃 MongoDB + Spring Data
-🔐 Spring Security + JWT
-📄 iText PDF 5.5.13.3
-📧 Spring Mail + JavaMail
-📚 OpenAPI/Swagger
-🔨 Maven Build System
-```
+### Development & DevOps Tools
+- **IDE**: IntelliJ IDEA / VS Code
+- **Version Control**: Git
+- **API Testing**: Postman
+- **Database GUI**: MongoDB Compass
+- **Package Management**: npm/yarn (Frontend), Maven (Backend)
+- **Code Quality**: ESLint, Prettier (Frontend)
+- **Type Checking**: TypeScript compiler
 
-</td>
-<td width="50%">
-
-### 🎨 **Frontend Stack**
-```
-⚛️ React 18.x + TypeScript 5.x
-🎨 Tailwind CSS + shadcn/ui
-🔄 TanStack Query (React Query)
-🌐 Axios HTTP Client
-📊 Recharts Visualization
-🎬 Framer Motion Animations
-⚡ Vite Build Tool
-🎯 Lucide React Icons
-```
-
-</td>
-</tr>
-</table>
-
-### 🔧 **Detailed Technology Breakdown**
-
-<details>
-<summary><strong>🖥️ Backend Technologies & Libraries</strong></summary>
-
-| Category | Technology | Version | Purpose |
-|----------|------------|---------|---------|
-| **Framework** | Spring Boot | 3.5.5 | Main application framework |
-| **Language** | Java | 17 | Programming language |
-| **Database** | MongoDB | Latest | NoSQL document database |
-| **Security** | Spring Security + JWT | Latest | Authentication & authorization |
-| **PDF Generation** | iText PDF | 5.5.13.3 | Professional PDF creation |
-| **Email Service** | Spring Mail + JavaMail | Latest | Email notifications |
-| **Documentation** | OpenAPI/Swagger | Latest | API documentation |
-| **Build Tool** | Maven | 3.6+ | Build & dependency management |
-| **Data Layer** | Spring Data MongoDB | Latest | Database abstraction |
-| **Validation** | Spring Boot Validation | Latest | Input validation |
-| **Monitoring** | Spring Boot Actuator | Latest | Application monitoring |
-| **Utilities** | Lombok | Latest | Boilerplate code reduction |
-
-</details>
-
-<details>
-<summary><strong>🎨 Frontend Technologies & Libraries</strong></summary>
-
-| Category | Technology | Version | Purpose |
-|----------|------------|---------|---------|
-| **Framework** | React | 18.x | UI framework |
-| **Language** | TypeScript | 5.x | Type-safe JavaScript |
-| **UI Library** | Tailwind CSS + shadcn/ui | Latest | Styling & components |
-| **State Management** | TanStack Query | v4 | Server state management |
-| **HTTP Client** | Axios | Latest | API communication |
-| **Charts** | Recharts | Latest | Data visualization |
-| **Animations** | Framer Motion | Latest | UI animations |
-| **Build Tool** | Vite | Latest | Fast build system |
-| **Icons** | Lucide React | Latest | Icon library |
-| **Forms** | React Hook Form | Latest | Form management |
-| **Routing** | React Router DOM | Latest | Client-side routing |
-| **Components** | Radix UI | Latest | Headless UI primitives |
-
-</details>
-
-<details>
-<summary><strong>🛠️ Development & DevOps Tools</strong></summary>
-
-| Category | Tool | Purpose |
-|----------|------|---------|
-| **IDEs** | IntelliJ IDEA, VS Code | Development environments |
-| **Version Control** | Git | Source code management |
-| **API Testing** | Postman | API development & testing |
-| **Database GUI** | MongoDB Compass | Database administration |
-| **Package Management** | Maven (Backend), npm/yarn (Frontend) | Dependency management |
-| **Code Quality** | ESLint, Prettier | Code formatting & linting |
-| **Type Checking** | TypeScript Compiler | Static type checking |
-| **Environment** | Spring Profiles | Configuration management |
-
-</details>
+### Infrastructure & Deployment
+- **Application Server**: Embedded Tomcat (Spring Boot)
+- **Database**: MongoDB (Local/Cloud)
+- **Email SMTP**: Configurable SMTP server
+- **File Storage**: Local file system for PDFs
+- **Environment Configuration**: Spring Profiles
 
 ## 📋 Prerequisites
 
@@ -236,100 +125,65 @@ Before running this application, make sure you have:
 
 ## 🚀 Quick Start
 
-<div align="center">
-
-### ⚡ **Get up and running in minutes!** ⚡
-
-</div>
-
-### 1️⃣ **Clone the Repository**
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/Harsha430/ERP.git
 cd ERP
 ```
 
-### 2️⃣ **Backend Setup**
+### 2. Backend Setup
 ```bash
-# 📝 Configure MongoDB connection in application.properties
-spring.data.mongodb.uri=mongodb://localhost:27017/erp_db
-spring.data.mongodb.database=erp_db
+# Navigate to backend directory (if separate) or stay in root
+cd backend  # or stay in root if backend is in root
 
-# 🔨 Build and run the backend
+# Configure MongoDB connection
+# Edit src/main/resources/application.properties
+spring.data.mongodb.uri=mongodb://localhost:27017/erp_db
+
+# Build and run the backend
 mvn clean install
 mvn spring-boot:run
 ```
 
-<div align="center">
-🚀 <strong>Backend will start on</strong> <code>http://localhost:8081</code>
-</div>
+The backend will start on `http://localhost:8081`
 
-### 3️⃣ **Frontend Setup**
+### 3. Frontend Setup
 ```bash
-# 📁 Navigate to frontend directory
+# Navigate to frontend directory
 cd frontend
 
-# 📦 Install dependencies
+# Install dependencies
 npm install
 
-# 🎯 Start development server
+# Start development server
 npm run dev
 ```
 
-<div align="center">
-🎨 <strong>Frontend will start on</strong> <code>http://localhost:5173</code>
-</div>
+The frontend will start on `http://localhost:5173`
 
-### 4️⃣ **Access the Application**
-
-<table align="center">
-<tr>
-<td align="center"><strong>🌐 Frontend</strong></td>
-<td align="center"><strong>🔗 Backend API</strong></td>
-<td align="center"><strong>📚 API Docs</strong></td>
-</tr>
-<tr>
-<td align="center"><a href="http://localhost:5173">localhost:5173</a></td>
-<td align="center"><a href="http://localhost:8081/api">localhost:8081/api</a></td>
-<td align="center"><a href="http://localhost:8081/swagger-ui.html">Swagger UI</a></td>
-</tr>
-</table>
+### 4. Access the Application
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8081/api
+- **API Documentation**: http://localhost:8081/swagger-ui.html
 
 ## 👤 Default Login Credentials
 
-<div align="center">
+The system comes with pre-configured user accounts:
 
-### 🔐 **Pre-configured User Accounts for Quick Testing**
+### Admin User
+- **Username**: `admin@erp.com`
+- **Password**: `admin123`
+- **Role**: Administrator
 
-</div>
+### HR User
+- **Username**: `hr@erp.com`
+- **Password**: `hr123`
+- **Role**: HR Manager
 
-<table align="center">
-<tr>
-<th>👑 Role</th>
-<th>📧 Username</th>
-<th>🔑 Password</th>
-<th>🎯 Access Level</th>
-</tr>
-<tr>
-<td><strong>🛡️ Administrator</strong></td>
-<td><code>admin@erp.com</code></td>
-<td><code>admin123</code></td>
-<td>Full system access</td>
-</tr>
-<tr>
-<td><strong>👥 HR Manager</strong></td>
-<td><code>hr@erp.com</code></td>
-<td><code>hr123</code></td>
-<td>HR module + Dashboard</td>
-</tr>
-<tr>
-<td><strong>💰 Finance Manager</strong></td>
-<td><code>finance@erp.com</code></td>
-<td><code>finance123</code></td>
-<td>Finance module + Dashboard</td>
-</tr>
-</table>
-
-> ⚠️ **Security Note:** Please change these default credentials in production environments!
+### Finance User
+- **Username**: `finance@erp.com`
+- **Password**: `finance123`
+- **Role**: Finance Manager
 
 ## 📁 Project Structure
 
@@ -420,35 +274,11 @@ const API_BASE_URL = 'http://localhost:8081/api';
   - 📈 Payroll expense tracking and reporting
   - 🔄 Real-time financial impact of payroll processing
 
-### 🔗 Integration & Advanced Features
-
-<div align="center">
-
-**🚀 Seamless Integration • 🔐 Enterprise Security • 📊 Real-time Analytics**
-
-</div>
-
-#### **💫 Smart Integration**
-- **🔄 HR-Finance Integration**: 
-  - Automatic journal entries creation from payroll
-  - Real-time financial impact tracking
-  - Seamless data synchronization between modules
-- **📧 Advanced Email System**:
-  - Outbox pattern for reliable email delivery
-  - Automatic retry mechanism for failed emails
-  - Dead letter queue for permanent failures
-  - PDF attachment support for payslips
-- **🛡️ Data Integrity & Safety**:
-  - Smart duplicate detection and cleanup
-  - MongoDB safe query operations
-  - Complete audit trail with transaction history
-  - Data consistency across all modules
-
-#### **🔒 Security & Access Control**
+### Integration Features
+- **HR-Finance Integration**: Payroll automatically creates finance transactions
+- **Real-time Synchronization**: Data consistency across modules
+- **Audit Trail**: Complete transaction history and user activity logs
 - **Role-based Access**: Granular permissions for different user roles
-- **JWT Authentication**: Secure token-based authentication
-- **Input Validation**: Comprehensive request validation
-- **CORS Protection**: Configurable cross-origin resource sharing
 
 ## 🧪 Testing
 
@@ -589,81 +419,18 @@ If you have any questions or need help with setup, please:
 2. Create a new issue with detailed description
 3. Contact the maintainers
 
-## � Performance & Scalability
+## 🔄 Changelog
 
-<div align="center">
-
-### ⚡ **Optimized for Performance** • 📈 **Built to Scale** • 🛡️ **Production Ready**
-
-</div>
-
-- **🚀 Fast Loading**: Optimized React components with lazy loading
-- **📊 Efficient Queries**: MongoDB aggregation pipelines for complex reports
-- **�🔄 Real-time Updates**: Live data synchronization across modules
-- **📱 Responsive Design**: Mobile-first approach with Tailwind CSS
-- **⚡ Caching**: Query caching with TanStack Query for optimal performance
-- **🛡️ Error Handling**: Comprehensive error boundaries and graceful degradation
-
-## 🔄 Recent Updates & Changelog
-
-### 🆕 Version 1.2.0 (Latest) - October 2025
-- ✨ **NEW**: Advanced PDF payslip generation with professional branding
-- ✨ **NEW**: Email integration with attachment support
-- ✨ **NEW**: Smart duplicate payslip detection and cleanup
-- ✨ **NEW**: Enhanced admin dashboard with collapsible sections
-- ✨ **NEW**: Outbox pattern for reliable email delivery
-- 🔧 **IMPROVED**: Payroll-Finance integration with automatic journal entries
-- 🔧 **IMPROVED**: Account management with proper double-entry bookkeeping
-- 🐛 **FIXED**: Date selection issues in payroll forms
-- 🐛 **FIXED**: MongoDB query optimization for better performance
-
-### 🎯 Version 1.1.0 - September 2025
-- ✅ Complete HR module with employee, attendance, leave management
-- ✅ Full Finance module with accounts, invoices, expenses, budgets
+### Version 1.0.0 (Latest)
+- ✅ Complete HR module with employee, attendance, leave, and payroll management
+- ✅ Full Finance module with accounts, invoices, expenses, budgets, and reports
 - ✅ Admin module with user management and system configuration
 - ✅ JWT-based authentication and role-based authorization
 - ✅ Modern React frontend with TypeScript and Tailwind CSS
 - ✅ Comprehensive API documentation with Swagger
-
-## 🛣️ Roadmap
-
-### 🎯 Coming Soon (Q4 2025)
-- [ ] 📱 Mobile app with React Native
-- [ ] 🤖 AI-powered analytics and insights
-- [ ] 📊 Advanced reporting with custom dashboards
-- [ ] 🔔 Real-time notifications system
-- [ ] 📧 Email templates management
-- [ ] 🌐 Multi-language support
-- [ ] 🔄 Data backup and restore functionality
-
-### 🚀 Future Enhancements (2026)
-- [ ] 📈 Business intelligence dashboard
-- [ ] 🤝 Third-party integrations (Slack, Teams, etc.)
-- [ ] 📱 Progressive Web App (PWA) support
-- [ ] 🌍 Multi-tenant architecture
-- [ ] 🔐 Advanced security features (2FA, SSO)
+- ✅ Docker support for easy deployment
+- ✅ Extensive test coverage
 
 ---
 
-<div align="center">
-
-## 🌟 **Built with ❤️ for Modern Businesses** 🌟
-
-### 🚀 **Enterprise-Ready** • 🔒 **Secure** • 📱 **Mobile-Friendly** • ⚡ **Fast**
-
-<br>
-
-**If this project helped you, please ⭐ star it on GitHub!**
-
-<br>
-
-[![GitHub stars](https://img.shields.io/github/stars/Harsha430/ERP?style=social)](https://github.com/Harsha430/ERP/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/Harsha430/ERP?style=social)](https://github.com/Harsha430/ERP/network/members)
-[![GitHub issues](https://img.shields.io/github/issues/Harsha430/ERP)](https://github.com/Harsha430/ERP/issues)
-
----
-
-
-*Made with 💼 for businesses, by developers who care about quality.*
-
-</div>
+**Built with ❤️ for modern businesses**
