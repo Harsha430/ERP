@@ -401,7 +401,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Authors
 
-- **Harsha** - *Initial work* - [Harsha430](https://github.com/Harsha430)
+- **Harsha** - [Harsha430](https://github.com/Harsha430)
+- **Deepak** - [deepakbusa](https://github.com/deepakbusa)
+- **Pavani** - [Pavanisagi](https://github.com/Pavanisagi)
+
 
 ## 🙏 Acknowledgments
 
