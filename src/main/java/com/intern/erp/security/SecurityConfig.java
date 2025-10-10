@@ -40,19 +40,26 @@ public class SecurityConfig {
             .cors(cors -> {})
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/auth/login", "/auth/logout", "/auth/me", "/auth/register").permitAll()
+                // Public endpoints
+                .requestMatchers("/", "/home", "/health", "/index.html", "/static/**", "/assets/**", "/favicon.ico").permitAll()
+                .requestMatchers("/auth/**").permitAll() // Allow all auth endpoints
                 .requestMatchers("/outbox/**").permitAll() // Allow outbox testing endpoints
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/hr/**").hasAnyRole("HR","ADMIN")
-                .requestMatchers("/api/finance/**").hasAnyRole("FINANCE","ADMIN")
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/test/**").permitAll()
                 .requestMatchers("/api/check/**").permitAll()
                 .requestMatchers("/api/test/integration/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/actuator/**").permitAll() // Allow actuator endpoints
+                // API endpoints with role-based access
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/hr/**").hasAnyRole("HR","ADMIN")
+                .requestMatchers("/api/finance/**").hasAnyRole("FINANCE","ADMIN")
+                // All other requests require authentication
                 .anyRequest().authenticated()
             )
             .httpBasic(httpBasic -> httpBasic.disable())
-            .formLogin(formLogin -> formLogin.disable());
+            .formLogin(formLogin -> formLogin.disable())
+            .logout(logout -> logout.permitAll());
         return http.build();
     }
 
@@ -60,7 +67,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowCredentials(true);
-        cfg.setAllowedOrigins(List.of("http://localhost:8080","http://127.0.0.1:8080"));
+        // Allow both frontend ports (5173 for Vite dev server, 3000 for potential production)
+        cfg.setAllowedOrigins(List.of(
+            "http://localhost:5173", 
+            "http://127.0.0.1:5173",
+            "http://localhost:3000", 
+            "http://127.0.0.1:3000",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080"
+        ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization","Content-Type"));
