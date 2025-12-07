@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Backend Service (Spring Boot)
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: erp-backend
+    restart: always
+    environment:
+      # Using MongoDB Atlas URI provided by user
+      SPRING_DATA_MONGODB_URI: "mongodb+srv://9922008101_db_user:00000@cluster0.mkptdj7.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0"
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "8081:8081"
+    networks:
+      - erp-network
+
+  # Frontend Service (React + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: erp-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - erp-network
+
+networks:
+  erp-network:
+    driver: bridge
