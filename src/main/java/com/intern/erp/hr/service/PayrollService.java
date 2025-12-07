@@ -1,5 +1,21 @@
 package com.intern.erp.hr.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.intern.erp.hr.model.Employee;
 import com.intern.erp.hr.model.Payslip;
 import com.intern.erp.hr.model.SalaryStructure;
@@ -7,17 +23,9 @@ import com.intern.erp.hr.model.enums.PayslipStatus;
 import com.intern.erp.hr.repository.EmployeeRepository;
 import com.intern.erp.hr.repository.PayslipRepository;
 import com.intern.erp.hr.repository.SalaryStructureRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,15 +35,23 @@ public class PayrollService {
     private final PayslipRepository payslipRepository;
     private final SalaryStructureRepository salaryStructureRepository;
     private final EmployeeRepository employeeRepository;
+    private final MongoTemplate mongoTemplate;
     
     @Transactional
     public Payslip generatePayslip(String employeeId, String payrollMonth) {
         log.info("Generating payslip for employee: {} for month: {}", employeeId, payrollMonth);
         
-        // Check if payslip already exists for this month
-        Optional<Payslip> existingPayslip = payslipRepository.findByEmployeeIdAndPayrollMonth(employeeId, payrollMonth);
-        if (existingPayslip.isPresent()) {
-            throw new RuntimeException("Payslip already exists for employee " + employeeId + " for month " + payrollMonth);
+        // Check for existing payslips using safe method and delete them
+        List<Payslip> existingPayslips = findPayslipsSafely(employeeId, payrollMonth);
+        
+        if (!existingPayslips.isEmpty()) {
+            log.info("Found {} existing payslip(s) for employee {} for month {}. Deleting to create fresh payslip...", 
+                    existingPayslips.size(), employeeId, payrollMonth);
+            
+            // Delete all existing payslips to create a fresh one
+            payslipRepository.deleteAll(existingPayslips);
+            log.info("Deleted {} existing payslip(s) for employee {} for month {}", 
+                    existingPayslips.size(), employeeId, payrollMonth);
         }
         
         // Get employee details - try by employeeId first, then by MongoDB ID
@@ -48,9 +64,9 @@ public class PayrollService {
         Employee employee = employeeOpt
             .orElseThrow(() -> new RuntimeException("Employee not found with ID: " + employeeId));
         
-        // Get salary structure - use the business employeeId
+        // Get salary structure - use the business employeeId with safe handling
         String businessEmployeeId = employee.getEmployeeId() != null ? employee.getEmployeeId() : employeeId;
-        SalaryStructure salaryStructure = salaryStructureRepository.findByEmployeeId(businessEmployeeId)
+        SalaryStructure salaryStructure = findSalaryStructureSafely(businessEmployeeId)
             .orElse(createDefaultSalaryStructure(employee));
         
         // Calculate attendance (simplified - you can enhance this)
@@ -65,7 +81,7 @@ public class PayrollService {
         payslip.setPayDate(LocalDate.now().plusDays(5)); // Pay date is 5 days from generation
         
         // Set salary components (pro-rated based on attendance)
-        BigDecimal attendanceRatio = BigDecimal.valueOf(presentDays).divide(BigDecimal.valueOf(workingDays), 4, BigDecimal.ROUND_HALF_UP);
+        BigDecimal attendanceRatio = BigDecimal.valueOf(presentDays).divide(BigDecimal.valueOf(workingDays), 4, RoundingMode.HALF_UP);
         
         payslip.setBasicSalary(salaryStructure.getBasicSalary().multiply(attendanceRatio));
         payslip.setHouseRentAllowance(salaryStructure.getHouseRentAllowance().multiply(attendanceRatio));
@@ -191,5 +207,87 @@ public class PayrollService {
         payslip.setFinanceJournalEntryId(journalEntryId);
         payslipRepository.save(payslip);
         log.info("Finance journal entry ID set for payslip: {}", payslipId);
+    }
+    
+    @Transactional
+    public int cleanupDuplicatePayslips() {
+        log.info("Starting cleanup of duplicate payslips");
+        
+        List<Payslip> allPayslips = payslipRepository.findAll();
+        Map<String, List<Payslip>> payslipsByEmployeeAndMonth = allPayslips.stream()
+            .collect(Collectors.groupingBy(payslip -> payslip.getEmployeeId() + "_" + payslip.getPayrollMonth()));
+        
+        int cleanedCount = 0;
+        
+        for (Map.Entry<String, List<Payslip>> entry : payslipsByEmployeeAndMonth.entrySet()) {
+            List<Payslip> payslips = entry.getValue();
+            
+            if (payslips.size() > 1) {
+                log.warn("Found {} duplicate payslips for key: {}", payslips.size(), entry.getKey());
+                
+                // Keep the most recent one
+                Payslip latestPayslip = payslips.stream()
+                    .max((p1, p2) -> p1.getGeneratedAt().compareTo(p2.getGeneratedAt()))
+                    .orElse(payslips.get(0));
+                
+                // Delete the rest
+                List<Payslip> duplicates = payslips.stream()
+                    .filter(p -> !p.getId().equals(latestPayslip.getId()))
+                    .collect(Collectors.toList());
+                
+                if (!duplicates.isEmpty()) {
+                    payslipRepository.deleteAll(duplicates);
+                    cleanedCount += duplicates.size();
+                    log.info("Removed {} duplicate payslips for key: {}", duplicates.size(), entry.getKey());
+                }
+            }
+        }
+        
+        log.info("Cleanup completed. Total duplicates removed: {}", cleanedCount);
+        return cleanedCount;
+    }
+    
+    public List<Payslip> findPayslipsSafely(String employeeId, String payrollMonth) {
+        try {
+            Query query = new Query();
+            query.addCriteria(Criteria.where("employeeId").is(employeeId));
+            query.addCriteria(Criteria.where("payrollMonth").is(payrollMonth));
+            
+            List<Payslip> payslips = mongoTemplate.find(query, Payslip.class);
+            log.info("Found {} payslips for employee {} and month {}", payslips.size(), employeeId, payrollMonth);
+            return payslips;
+        } catch (Exception e) {
+            log.error("Error finding payslips for employee {} and month {}: {}", employeeId, payrollMonth, e.getMessage());
+            return List.of();
+        }
+    }
+    
+    public Optional<SalaryStructure> findSalaryStructureSafely(String employeeId) {
+        try {
+            List<SalaryStructure> salaryStructures = salaryStructureRepository.findAllByEmployeeId(employeeId);
+            
+            if (salaryStructures.isEmpty()) {
+                log.info("No salary structure found for employee {}", employeeId);
+                return Optional.empty();
+            }
+            
+            if (salaryStructures.size() > 1) {
+                log.warn("Found {} salary structures for employee {}. Using the first one and removing duplicates.", 
+                        salaryStructures.size(), employeeId);
+                
+                // Keep the first one and delete the rest
+                SalaryStructure keepStructure = salaryStructures.get(0);
+                List<SalaryStructure> duplicates = salaryStructures.subList(1, salaryStructures.size());
+                salaryStructureRepository.deleteAll(duplicates);
+                
+                log.info("Deleted {} duplicate salary structures for employee {}", duplicates.size(), employeeId);
+                return Optional.of(keepStructure);
+            }
+            
+            return Optional.of(salaryStructures.get(0));
+        } catch (Exception e) {
+            log.error("Error finding salary structure for employee {}: {}", employeeId, e.getMessage());
+            return Optional.empty();
+        }
     }
 }

@@ -49,4 +49,28 @@ public class EmailService {
             sendEmail(to, subject, textBody != null ? textBody : htmlBody.replaceAll("<[^>]+>", ""));
         }
     }
+
+    public void sendEmailWithAttachment(String to, String subject, String body, byte[] attachment, String fileName) {
+        try {
+            log.debug("Sending email with attachment to={} subject='{}' attachment='{}'", to, subject, fileName);
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(body);
+            
+            // Add attachment
+            helper.addAttachment(fileName, new org.springframework.core.io.ByteArrayResource(attachment));
+            
+            mailSender.send(mimeMessage);
+            log.info("Email with attachment sent to={} subject='{}' attachment='{}'", to, subject, fileName);
+        } catch (Exception e) {
+            log.error("Failed to send email with attachment to={} subject='{}' attachment='{}'. Error: {}", 
+                    to, subject, fileName, e.getMessage());
+            // Fallback to sending email without attachment
+            log.info("Falling back to plain email without attachment");
+            sendEmail(to, subject, body);
+        }
+    }
 }
