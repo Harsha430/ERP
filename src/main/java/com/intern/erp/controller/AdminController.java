@@ -26,8 +26,8 @@ import com.intern.erp.users.repository.UserAccountRepository;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "*")
 public class AdminController {
+
     
     @Autowired
     private DataInitializer dataInitializer;
