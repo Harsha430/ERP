@@ -67,6 +67,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        System.out.println("DEBUG: SecurityConfig initialized. FRONTEND_URL is: [" + frontendUrl + "]");
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
@@ -93,12 +98,11 @@ public class SecurityConfig {
             }
         }
         
+        System.out.println("DEBUG: Configuring CORS with allowed origins: " + allowedOrigins);
         cfg.setAllowedOrigins(allowedOrigins);
-
-
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-        cfg.setExposedHeaders(List.of("Authorization","Content-Type"));
+        cfg.setExposedHeaders(List.of("Authorization","Content-Type","Set-Cookie"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
