@@ -17,8 +17,8 @@ public class HomeController {
         response.put("version", "1.2.0");
         response.put("status", "running");
         response.put("message", "Welcome to ERP System API");
-        response.put("frontend", "http://localhost:5173");
-        response.put("documentation", "http://localhost:8081/swagger-ui.html");
+        response.put("features", "Inventory, HR, Finance Management");
+
         
         return ResponseEntity.ok(response);
     }
