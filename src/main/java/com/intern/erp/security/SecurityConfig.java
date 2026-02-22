@@ -85,9 +85,16 @@ public class SecurityConfig {
         
         if (frontendUrl != null && !frontendUrl.isEmpty()) {
             allowedOrigins.add(frontendUrl);
+            // Also add without trailing slash just in case
+            if (frontendUrl.endsWith("/")) {
+                allowedOrigins.add(frontendUrl.substring(0, frontendUrl.length() - 1));
+            } else {
+                allowedOrigins.add(frontendUrl + "/");
+            }
         }
         
         cfg.setAllowedOrigins(allowedOrigins);
+
 
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
