@@ -23,8 +23,12 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:}")
+    private String frontendUrl;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 
@@ -68,9 +72,6 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowCredentials(true);
         
-        // Dynamic origin from environment variable for production
-        String frontendUrl = System.getenv("FRONTEND_URL");
-        
         List<String> allowedOrigins = new java.util.ArrayList<>(List.of(
             "http://localhost:5173", 
             "http://127.0.0.1:5173",
@@ -87,6 +88,7 @@ public class SecurityConfig {
         }
         
         cfg.setAllowedOrigins(allowedOrigins);
+
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization","Content-Type"));

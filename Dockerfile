@@ -13,5 +13,6 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=builder /app/target/*.jar /app/erp.jar  
 
-EXPOSE 8080
+# EXPOSE the default port (though Render will override this with $PORT)
+EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "erp.jar"]
