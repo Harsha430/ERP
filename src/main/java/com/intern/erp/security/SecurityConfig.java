@@ -37,12 +37,18 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
+    private final JwtAuthenticationFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers("/", "/home", "/health", "/index.html", "/static/**", "/assets/**", "/favicon.ico").permitAll()
@@ -61,16 +67,13 @@ public class SecurityConfig {
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
             .httpBasic(httpBasic -> httpBasic.disable())
             .formLogin(formLogin -> formLogin.disable())
-            .logout(logout -> logout.permitAll());
+            .logout(logout -> logout.disable()); // Handled by client by removing token
         return http.build();
     }
 
-    @jakarta.annotation.PostConstruct
-    public void init() {
-        System.out.println("DEBUG: SecurityConfig initialized. FRONTEND_URL is: [" + frontendUrl + "]");
-    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -98,14 +101,14 @@ public class SecurityConfig {
             }
         }
         
-        System.out.println("DEBUG: Configuring CORS with allowed origins: " + allowedOrigins);
         cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-        cfg.setExposedHeaders(List.of("Authorization","Content-Type","Set-Cookie"));
+        cfg.setExposedHeaders(List.of("Authorization","Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
     }
+
 
 }

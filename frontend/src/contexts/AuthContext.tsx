@@ -33,7 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+      const token = localStorage.getItem('erp_token');
+      const res = await fetch(`${API_BASE}/auth/me`, { 
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (data.authenticated) {
@@ -44,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
         localStorage.removeItem('erp_user');
+        localStorage.removeItem('erp_token');
       }
     } catch {
       // ignore
@@ -64,14 +70,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password })
       });
       if (!res.ok) return false;
+      const loginData = await res.json();
+      if (!loginData.success || !loginData.token) return false;
+
+      // Store token
+      localStorage.setItem('erp_token', loginData.token);
 
       // Directly fetch current user to avoid state race
-      const meRes = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
+      const meRes = await fetch(`${API_BASE}/auth/me`, { 
+        headers: { 'Authorization': `Bearer ${loginData.token}` } 
+      });
       if (!meRes.ok) return false;
       const me = await meRes.json();
       if (!me.authenticated) return false;
@@ -91,11 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
-    } catch {/* ignore */}
     setUser(null);
     localStorage.removeItem('erp_user');
+    localStorage.removeItem('erp_token');
   };
 
   return (

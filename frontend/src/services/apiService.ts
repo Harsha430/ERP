@@ -9,11 +9,20 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit & { suppres
   try {
     const url = `${API_BASE_URL}${endpoint}`;
     const { suppressNotFoundError, ...fetchOptions } = options || {};
+    
+    // Get token from localStorage
+    const token = localStorage.getItem('erp_token');
+    
     const config: RequestInit = {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(fetchOptions?.headers||{}) },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(fetchOptions?.headers||{}) 
+      },
       ...fetchOptions,
     };
+
     const response = await fetch(url, config);
     
     if (!response.ok) {
