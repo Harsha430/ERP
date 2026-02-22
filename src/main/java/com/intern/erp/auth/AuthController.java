@@ -48,22 +48,31 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req, HttpServletRequest httpReq) {
+        System.out.println("DEBUG: Login attempt for identifier: " + (req != null ? req.identifier() : "null"));
         if (req == null || req.identifier() == null || req.password() == null) {
+            System.out.println("DEBUG: Missing credentials in request");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("success", false, "message", "Missing credentials"));
         }
         String identifier = req.identifier().trim();
         Optional<UserAccount> userOpt = userRepo.findByUsername(identifier);
         if (userOpt.isEmpty()) {
+            System.out.println("DEBUG: User not found by username, searching by email: " + identifier.toLowerCase());
             userOpt = userRepo.findByEmail(identifier.toLowerCase());
         }
         if (userOpt.isEmpty()) {
+            System.out.println("DEBUG: User NOT found in database for identifier: " + identifier);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false, "message", "Invalid credentials"));
         }
         UserAccount user = userOpt.get();
+        System.out.println("DEBUG: User found: " + user.getUsername() + " (Email: " + user.getEmail() + ")");
         if (!user.isEnabled()) {
+            System.out.println("DEBUG: User account is disabled for: " + user.getUsername());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false, "message", "User disabled"));
         }
-        if (!passwordEncoder.matches(req.password(), user.getPassword())) {
+        boolean passwordMatches = passwordEncoder.matches(req.password(), user.getPassword());
+        System.out.println("DEBUG: Password match result: " + passwordMatches);
+        if (!passwordMatches) {
+            System.out.println("DEBUG: Incorrect password for user: " + user.getUsername());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false, "message", "Invalid credentials"));
         }
         CustomUserDetails cud = new CustomUserDetails(user);
@@ -72,8 +81,10 @@ public class AuthController {
         // Ensure session is created so cookie is sent
         HttpSession session = httpReq.getSession(true);
         session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+        System.out.println("DEBUG: Login successful for user: " + user.getUsername());
         return ResponseEntity.ok(new LoginResponse(true, "Login successful", user.getUsername(), toRoleNames(user.getRoles())));
     }
+
 
     @GetMapping("/me")
     public Map<String, Object> me() {
