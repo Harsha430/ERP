@@ -87,9 +87,26 @@ public class AuthController {
 
 
     @GetMapping("/me")
-    public Map<String, Object> me() {
+    public Map<String, Object> me(HttpServletRequest request) {
+        System.out.println("DEBUG: /auth/me request received");
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            System.out.println("DEBUG: Session found: " + session.getId());
+        } else {
+            System.out.println("DEBUG: No session found in request");
+        }
+        
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                System.out.println("DEBUG: Cookie found: " + c.getName() + "=" + (c.getName().equals("JSESSIONID") ? "[REDACTED]" : c.getValue()));
+            }
+        } else {
+            System.out.println("DEBUG: No cookies found in request");
+        }
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equalsIgnoreCase(String.valueOf(auth.getPrincipal()))) {
+            System.out.println("DEBUG: User not authenticated (anonymous)");
             return Map.of("authenticated", false);
         }
         Object principal = auth.getPrincipal();
@@ -102,12 +119,14 @@ public class AuthController {
             username = principal.toString();
             auth.getAuthorities().forEach(a -> roles.add(a.getAuthority()));
         }
+        System.out.println("DEBUG: /auth/me returning authenticated for: " + username);
         return Map.of(
             "authenticated", true,
             "username", username,
             "roles", roles
         );
     }
+
 
     @PostMapping("/logout")
     public Map<String, Object> logout(HttpServletRequest request) {
