@@ -1,5 +1,7 @@
 // API Service for ERP Backend Communication
-const API_BASE_URL = 'http://localhost:8081/api';
+// API Service for ERP Backend Communication
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api`;
+
 
 // Generic API request function (robust parsing for JSON / text / empty)
 async function apiRequest<T>(endpoint: string, options?: RequestInit & { suppressNotFoundError?: boolean }): Promise<T> {

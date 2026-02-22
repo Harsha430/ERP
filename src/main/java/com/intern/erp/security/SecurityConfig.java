@@ -67,7 +67,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowCredentials(true);
-        cfg.setAllowedOrigins(List.of(
+        
+        // Dynamic origin from environment variable for production
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        
+        List<String> allowedOrigins = new java.util.ArrayList<>(List.of(
             "http://localhost:5173", 
             "http://127.0.0.1:5173",
             "http://localhost:3000", 
@@ -77,6 +81,12 @@ public class SecurityConfig {
             "http://localhost:8081",
             "http://127.0.0.1:8081"
         ));
+        
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            allowedOrigins.add(frontendUrl);
+        }
+        
+        cfg.setAllowedOrigins(allowedOrigins);
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization","Content-Type"));
@@ -84,4 +94,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", cfg);
         return source;
     }
+
 }
